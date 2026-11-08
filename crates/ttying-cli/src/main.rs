@@ -29,8 +29,20 @@ struct Args {
     public_url: Option<String>,
     #[arg(short = 'W', long, help = "Allow keyboard input (default: read-only)")]
     writable: bool,
+    #[arg(
+        long,
+        help = "Force read-only even if the INI file enables writable",
+        conflicts_with = "writable"
+    )]
+    read_only: bool,
     #[arg(long, help = "Use Secure cookies behind an HTTPS reverse proxy")]
     secure_cookie: bool,
+    #[arg(
+        long,
+        help = "Disable Secure cookies even if the INI file enables them",
+        conflicts_with = "secure_cookie"
+    )]
+    no_secure_cookie: bool,
     #[arg(long, default_value_t = 10)]
     max_clients: usize,
     #[arg(long = "allowed-origin")]
@@ -95,6 +107,16 @@ fn choose_token(args: &Args) -> Result<String> {
         return load_or_create_token(file, !args.print_url);
     }
     Ok(random_token())
+}
+
+fn merge_flag(positive: bool, negative: bool, configured: Option<bool>) -> bool {
+    if negative {
+        false
+    } else if positive {
+        true
+    } else {
+        configured.unwrap_or(false)
+    }
 }
 
 fn parse_ini_bool(value: &str, key: &str) -> Result<bool> {
@@ -219,12 +241,14 @@ fn apply_config(args: &mut Args, matches: &clap::ArgMatches) -> Result<()> {
                 .collect();
         }
     }
-    if let Some(value) = get("security", "secure_cookie") {
-        args.secure_cookie |= parse_ini_bool(&value, "[security] secure_cookie")?;
-    }
-    if let Some(value) = get("terminal", "writable") {
-        args.writable |= parse_ini_bool(&value, "[terminal] writable")?;
-    }
+    let ini_secure_cookie = get("security", "secure_cookie")
+        .map(|value| parse_ini_bool(&value, "[security] secure_cookie"))
+        .transpose()?;
+    args.secure_cookie = merge_flag(args.secure_cookie, args.no_secure_cookie, ini_secure_cookie);
+    let ini_writable = get("terminal", "writable")
+        .map(|value| parse_ini_bool(&value, "[terminal] writable"))
+        .transpose()?;
+    args.writable = merge_flag(args.writable, args.read_only, ini_writable);
     if args.command.is_empty() {
         if let Some(value) = get("terminal", "command") {
             args.command = split_command(&value)?;
@@ -306,11 +330,15 @@ fn main() -> Result<()> {
                 token_file: args.token_file.clone(),
                 command: args.command.clone(),
                 read_only: !args.writable,
-                secure_cookie: args.secure_cookie
-                    || args
-                        .public_url
-                        .as_deref()
-                        .is_some_and(|u| u.starts_with("https://")),
+                secure_cookie: if args.no_secure_cookie {
+                    false
+                } else {
+                    args.secure_cookie
+                        || args
+                            .public_url
+                            .as_deref()
+                            .is_some_and(|u| u.starts_with("https://"))
+                },
                 max_clients: args.max_clients,
                 allowed_origins: args.allowed_origins.clone(),
                 service_account: args.service_account.clone(),
@@ -356,10 +384,14 @@ fn main() -> Result<()> {
         .public_url
         .as_deref()
         .is_some_and(|u| u.starts_with("https://"));
-    if public_is_https && !args.secure_cookie {
-        tracing::warn!("--public-url is HTTPS but --secure-cookie is not set; enabling Secure cookies for browser compatibility");
+    if public_is_https && args.no_secure_cookie {
+        tracing::warn!("--public-url is HTTPS but --no-secure-cookie was requested; browser authentication will likely fail");
     }
-    let secure_cookie = args.secure_cookie || public_is_https;
+    let secure_cookie = if args.no_secure_cookie {
+        false
+    } else {
+        args.secure_cookie || public_is_https
+    };
     let config = ServerConfig {
         bind: args.bind.clone(),
         port: args.port,
@@ -433,5 +465,13 @@ mod tests {
         assert!(parse_ini_bool("true", "test").unwrap());
         assert!(!parse_ini_bool("OFF", "test").unwrap());
         assert!(parse_ini_bool("maybe", "test").is_err());
+    }
+
+    #[test]
+    fn command_line_flags_override_ini_booleans() {
+        assert!(merge_flag(false, false, Some(true)));
+        assert!(!merge_flag(false, true, Some(true)));
+        assert!(merge_flag(true, false, Some(false)));
+        assert!(!merge_flag(true, true, None));
     }
 }

@@ -107,7 +107,7 @@ Copy `ttying.ini.example` to a private file and start with:
 ttying.exe --config .\ttying.ini
 ```
 
-Command-line arguments override INI values. Relative `token_file` paths are resolved relative to the INI file.
+Command-line arguments override INI values. Relative `token_file` paths are resolved relative to the INI file. Use `--read-only` to override `writable = true` from the INI file, and `--no-secure-cookie` to override `secure_cookie = true`.
 
 ```ini
 [server]

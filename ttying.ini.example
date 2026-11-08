@@ -14,6 +14,7 @@ port = 7755
 # Prefer token_file. A relative path is resolved relative to this INI file.
 token_file = token.txt
 # Set true when an HTTPS reverse proxy terminates TLS.
+# Override with --no-secure-cookie even when this is true.
 secure_cookie = false
 max_clients = 10
 # Comma-separated exact origins; normally unnecessary when Host is preserved.
@@ -23,6 +24,7 @@ max_clients = 10
 
 [terminal]
 # Terminal input is read-only unless this is true.
+# Override with --read-only even when this is true.
 writable = false
 # Optional shell/command. Quote arguments that contain spaces.
 # command = cmd.exe /k

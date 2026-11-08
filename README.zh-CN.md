@@ -106,7 +106,7 @@ Android UI starts the foreground service; terminal interaction is in the browser
 ttying.exe --config .	tying.ini
 ```
 
-命令行参数会覆盖 INI 中的同名配置。`token_file` 使用相对路径时，相对于 INI 文件所在目录解析。
+命令行参数会覆盖 INI 中的同名配置。`token_file` 使用相对路径时，相对于 INI 文件所在目录解析。使用 `--read-only` 可以覆盖 INI 中的 `writable = true`，使用 `--no-secure-cookie` 可以覆盖 `secure_cookie = true`。
 
 ```ini
 [server]
