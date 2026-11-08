@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#1e1e1e">
+  <title>ttying</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div id="app">
+    <div id="search-bar" class="hidden">
+      <input id="search-input" type="search" placeholder="Find in terminal" autocomplete="off" spellcheck="false">
+      <button id="search-prev" type="button" title="Previous match">↑</button>
+      <button id="search-next" type="button" title="Next match">↓</button>
+      <button id="search-close" type="button" title="Close search">×</button>
+    </div>
+
+    <div id="terminal"></div>
+    <div id="mobile-keys" class="hidden" aria-label="Terminal special keys"></div>
+
+    <div id="statusbar">
+      <span id="status" aria-live="polite">Connecting…</span>
+      <span id="readonly-badge" class="hidden">READ-ONLY</span>
+      <div id="actions">
+        <button id="btn-reconnect" class="hidden" type="button">Reconnect</button>
+        <button id="btn-keys" type="button" aria-pressed="false" title="Toggle special-key toolbar">Keys</button>
+        <button id="btn-theme" type="button" title="Theme">Auto</button>
+        <button id="btn-font-dec" type="button" title="Smaller font">A−</button>
+        <button id="btn-font-inc" type="button" title="Larger font">A+</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ctx-menu" class="hidden">
+    <button id="ctx-copy" type="button">Copy</button>
+    <button id="ctx-paste" type="button">Paste</button>
+    <button id="ctx-select-all" type="button">Select all</button>
+  </div>
+
+  <div id="auth-modal" class="hidden">
+    <form id="auth-form">
+      <h2>Authentication required</h2>
+      <label for="token">Access token</label>
+      <input id="token" autocomplete="off" autocapitalize="off" spellcheck="false" type="password">
+      <button type="submit">Connect</button>
+      <div id="auth-error"></div>
+    </form>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

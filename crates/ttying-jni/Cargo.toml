@@ -1,0 +1,17 @@
+[package]
+name = "ttying-jni"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+anyhow.workspace = true
+url.workspace = true
+jni.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+ttying-core = { path = "../ttying-core" }

@@ -1,0 +1,20 @@
+[Unit]
+Description=ttying web terminal
+After=network.target
+
+[Service]
+Type=simple
+User=ttying
+Group=ttying
+ExecStart=/usr/local/bin/ttying --bind 127.0.0.1 --port 7755 --token-file /etc/ttying/token -W -- /bin/bash -l
+Restart=on-failure
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+RestrictAddressFamilies=AF_INET AF_INET6
+MemoryMax=256M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

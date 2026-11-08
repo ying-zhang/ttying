@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+      - uses: Swatinem/rust-cache@v2
+      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc
+      - name: Build web assets
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          Copy-Item src/index.html ../crates/ttying-core/assets/index.html -Force
+      - name: Add MinGW to PATH
+        shell: pwsh
+        run: |
+          "C:\msys64\ucrt64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Test and lint
+        run: |
+          cargo test --workspace --locked
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Build Windows release
+        run: cargo build --locked --release --target x86_64-pc-windows-gnu -p ttying-cli
+      - name: Test frontend
+        run: node --test web/tests/reconnect.test.cjs
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+      - uses: Swatinem/rust-cache@v2
+      - name: Build web assets
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          cp src/index.html ../crates/ttying-core/assets/index.html
+      - name: Install musl tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: Test and lint
+        run: |
+          cargo test --workspace --locked
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Build debug server
+        run: cargo build --workspace --locked
+      - name: Protocol and smoke tests
+        env:
+          TTYING_TEST_EXE: ${{ github.workspace }}/target/debug/ttying
+          TTYING_TEST_COMMAND: '["/bin/sh","-c","exit 0"]'
+          TTYING_TEST_SHELL: '["/bin/sh"]'
+        run: |
+          python3 scripts/security-regression.py
+          TTYING_TEST_COMMAND='["/bin/sh"]' python3 scripts/smoke-test.py
+      - name: Build Linux release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+          CC_x86_64_unknown_linux_musl: musl-gcc
+        run: cargo build --locked --release --target x86_64-unknown-linux-musl -p ttying-cli
+      - name: Test frontend
+        run: node --test web/tests/reconnect.test.cjs
+
+  android-jni:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+      - name: Build web assets
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          cp src/index.html ../crates/ttying-core/assets/index.html
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+      - name: Select Android NDK
+        run: |
+          echo "ANDROID_HOME=${ANDROID_SDK_ROOT:-$ANDROID_HOME}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$(ls -d "$ANDROID_SDK_ROOT"/ndk/* | sort -V | tail -1)" >> "$GITHUB_ENV"
+      - name: Compile Android JNI
+        run: cargo ndk -t arm64-v8a -o android/jniLibs build --locked --release -p ttying-jni
