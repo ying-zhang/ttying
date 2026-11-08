@@ -284,8 +284,8 @@ packaging/           systemd unit
   - `SHA256SUMS.txt`
 - Create a release with:
   ```powershell
-  git tag v0.1.0
-  git push origin v0.1.0
+  git tag v1.8.0
+  git push origin v1.8.0
   ```
 - Required repository secrets for Android signing:
   - `ANDROID_KEYSTORE_BASE64`

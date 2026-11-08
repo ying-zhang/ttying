@@ -241,8 +241,8 @@ packaging/           systemd 单元
   - `SHA256SUMS.txt`
 - 创建发布：
   ```powershell
-  git tag v0.1.0
-  git push origin v0.1.0
+  git tag v1.8.0
+  git push origin v1.8.0
   ```
 - Android 签名需要以下 repository secrets：
   - `ANDROID_KEYSTORE_BASE64`
