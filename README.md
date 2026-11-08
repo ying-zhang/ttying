@@ -12,7 +12,7 @@ Android arm64   ->  ttying-android-arm64.apk
 
 The Android app only starts, stops, and reports the status of the local server. Terminal interaction happens in the system browser. The application id is `cn.z.ttying`.
 
-Current release: **v1.8.0** · [GitHub repository](https://github.com/ying-zhang/ttying) · [Releases](https://github.com/ying-zhang/ttying/releases) · [Website](https://ying-zhang.cn/ttying/)
+Current release: **v1.8.0** · [GitHub repository](https://github.com/ying-zhang/ttying) · [Releases](https://github.com/ying-zhang/ttying/releases) · [Website](https://ying-zhang.github.io/ttying/)
 
 ## Development disclosure
 

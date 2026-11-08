@@ -157,3 +157,5 @@
 .shot.wide { grid-column: 1 / -1; }
 .lang-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 700px) { .gallery, .lang-pair { grid-template-columns: 1fr; } .shot.wide { grid-column: auto; } }
+html[data-lang="en"] .lang-zh, html[data-lang="zh"] .lang-en { display: none !important; }
+html:not([data-lang]) .lang-zh { display: none !important; }

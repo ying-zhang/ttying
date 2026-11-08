@@ -1,9 +1,32 @@
+let currentLang = document.documentElement.dataset.lang || "en";
+
+function applyLanguage(lang) {
+  currentLang = lang === "zh" ? "zh" : "en";
+  document.documentElement.dataset.lang = currentLang;
+  document.documentElement.lang = currentLang === "zh" ? "zh-CN" : "en";
+  document.title = currentLang === "zh" ? "ttying - 安全的 Web 终端" : "ttying - secure web terminal";
+  document.querySelectorAll("[data-lang-toggle]").forEach((button) => {
+    button.textContent = currentLang === "zh" ? "English" : "中文";
+  });
+  try { localStorage.setItem("ttying-lang", currentLang); } catch (error) {}
+}
+
+applyLanguage(currentLang);
+document.querySelectorAll("[data-lang-toggle]").forEach((button) => {
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    applyLanguage(currentLang === "zh" ? "en" : "zh");
+  });
+});
+
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
+    const card = tab.closest(".quick-card");
+    if (!card) return;
+    card.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
     tab.classList.add("active");
     ["win", "linux", "android"].forEach((name) => {
-      const panel = document.getElementById("code-" + name);
+      const panel = card.querySelector("#code-" + name);
       if (panel) panel.hidden = name !== tab.dataset.tab;
     });
   });
