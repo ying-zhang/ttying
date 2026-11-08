@@ -123,11 +123,11 @@ public class MainActivity extends Activity {
             scroll.setFitsSystemWindows(true);
         }
 
-        TextView title = text("ttying", 32, 0xFFF8FAFC);
+        TextView title = text(getString(R.string.app_name), 32, 0xFFF8FAFC);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         root.addView(title);
 
-        TextView subtitle = text("本机 Web 终端 · 仅本机访问", 14, 0xFF94A3B8);
+        TextView subtitle = text(getString(R.string.subtitle), 14, 0xFF94A3B8);
         root.addView(subtitle, margins(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0, 4, 0, 22));
 
         LinearLayout card = new LinearLayout(this);
@@ -137,15 +137,15 @@ public class MainActivity extends Activity {
         card.setElevation(dp(4));
         root.addView(card, margins(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0, 0, 0, 8));
 
-        TextView label = text("服务状态", 12, 0xFF64748B);
+        TextView label = text(getString(R.string.status_label), 12, 0xFF64748B);
         label.setLetterSpacing(0.12f);
         card.addView(label);
 
-        statusTitle = text("正在检查…", 24, 0xFFCBD5E1);
+        statusTitle = text(getString(R.string.status_checking), 24, 0xFFCBD5E1);
         statusTitle.setTypeface(Typeface.DEFAULT_BOLD);
         card.addView(statusTitle, margins(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 0, 4, 0, 6));
 
-        statusDetail = text("正在读取服务状态…", 14, 0xFF94A3B8);
+        statusDetail = text(getString(R.string.status_detail_checking), 14, 0xFF94A3B8);
         card.addView(statusDetail);
 
         FrameLayout center = new FrameLayout(this);
@@ -167,13 +167,13 @@ public class MainActivity extends Activity {
 
         openButton = new Button(this);
         openButton.setAllCaps(false);
-        openButton.setText("在浏览器中打开终端");
+        openButton.setText(getString(R.string.button_open_browser));
         openButton.setTextSize(16);
         openButton.setTextColor(Color.WHITE);
         openButton.setOnClickListener(v -> openBrowser());
         root.addView(openButton, margins(LinearLayout.LayoutParams.MATCH_PARENT, dp(54), 0, 12, 0, 0));
 
-        setPrimaryState("启动", 0xFF0891B2, 0xFF2563EB, true);
+        setPrimaryState(getString(R.string.button_start), 0xFF0891B2, 0xFF2563EB, true);
         setOpenEnabled(false);
         return scroll;
     }
@@ -196,20 +196,20 @@ public class MainActivity extends Activity {
     private void startServer() {
         starting = true;
         stopping = false;
-        statusTitle.setText("正在启动…");
+        statusTitle.setText(getString(R.string.status_starting));
         statusTitle.setTextColor(0xFFFBBF24);
-        statusDetail.setText("正在初始化本机终端服务，请稍候。");
-        setPrimaryState("启动中", 0xFF475569, 0xFF475569, false);
+        statusDetail.setText(getString(R.string.detail_starting));
+        setPrimaryState(getString(R.string.button_starting), 0xFF475569, 0xFF475569, false);
         setOpenEnabled(false);
         try {
             Intent intent = new Intent(this, TtyingService.class).setAction(TtyingService.ACTION_START);
             if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent); else startService(intent);
         } catch (Exception e) {
             starting = false;
-            statusTitle.setText("启动失败");
+            statusTitle.setText(getString(R.string.status_start_failed));
             statusTitle.setTextColor(0xFFF87171);
-            statusDetail.setText(e.getMessage() == null ? "无法启动服务。" : e.getMessage());
-            setPrimaryState("重试", 0xFF0891B2, 0xFF2563EB, true);
+            statusDetail.setText(e.getMessage() == null ? getString(R.string.start_error_generic) : e.getMessage());
+            setPrimaryState(getString(R.string.button_retry), 0xFF0891B2, 0xFF2563EB, true);
         }
         handler.postDelayed(() -> {
             if (starting) {
@@ -222,10 +222,10 @@ public class MainActivity extends Activity {
     private void stopServer() {
         stopping = true;
         starting = false;
-        statusTitle.setText("正在停止…");
+        statusTitle.setText(getString(R.string.status_stopping));
         statusTitle.setTextColor(0xFFFBBF24);
-        statusDetail.setText("正在关闭终端服务和相关会话。");
-        setPrimaryState("停止中", 0xFF475569, 0xFF475569, false);
+        statusDetail.setText(getString(R.string.detail_stopping));
+        setPrimaryState(getString(R.string.button_stopping), 0xFF475569, 0xFF475569, false);
         setOpenEnabled(false);
         if (binder != null) {
             binder.stopServer();
@@ -243,11 +243,11 @@ public class MainActivity extends Activity {
     private void refresh() {
         if (binder == null) {
                 if (!starting && !stopping) {
-                statusTitle.setText(serviceRunning ? "正在连接服务…" : "服务未运行");
+                statusTitle.setText(serviceRunning ? getString(R.string.status_connecting) : getString(R.string.status_not_running));
                 statusTitle.setTextColor(serviceRunning ? 0xFFFBBF24 : 0xFFCBD5E1);
-                statusDetail.setText(serviceRunning ? "正在重新连接前台服务。" : "点击中间的圆形按钮启动服务。");
+                statusDetail.setText(serviceRunning ? getString(R.string.detail_connecting) : getString(R.string.detail_not_running));
             }
-            setPrimaryState(starting ? "启动中" : stopping ? "停止中" : "启动", 0xFF0891B2, 0xFF2563EB, !starting && !stopping);
+            setPrimaryState(starting ? getString(R.string.button_starting) : stopping ? getString(R.string.button_stopping) : getString(R.string.button_start), 0xFF0891B2, 0xFF2563EB, !starting && !stopping);
             setOpenEnabled(false);
             return;
         }
@@ -260,35 +260,35 @@ public class MainActivity extends Activity {
             if (!error.isEmpty()) {
                 starting = false;
                 stopping = false;
-                statusTitle.setText("启动失败");
+                statusTitle.setText(getString(R.string.status_start_failed));
                 statusTitle.setTextColor(0xFFF87171);
                 statusDetail.setText(error);
-                setPrimaryState("重试", 0xFF0891B2, 0xFF2563EB, true);
+                setPrimaryState(getString(R.string.button_retry), 0xFF0891B2, 0xFF2563EB, true);
                 setOpenEnabled(false);
             } else if (running) {
                 starting = false;
                 stopping = false;
-                statusTitle.setText("服务运行中");
+                statusTitle.setText(getString(R.string.status_running));
                 statusTitle.setTextColor(0xFF4ADE80);
-                statusDetail.setText("端口 " + port + " · 点击下方按钮打开终端。");
-                setPrimaryState("停止", 0xFFBE123C, 0xFFE11D48, true);
+                statusDetail.setText(getString(R.string.detail_running, port));
+                setPrimaryState(getString(R.string.button_stop), 0xFFBE123C, 0xFFE11D48, true);
                 setOpenEnabled(true);
             } else if (starting) {
-                setPrimaryState("启动中", 0xFF475569, 0xFF475569, false);
+                setPrimaryState(getString(R.string.button_starting), 0xFF475569, 0xFF475569, false);
                 setOpenEnabled(false);
             } else {
                 stopping = false;
-                statusTitle.setText("服务未运行");
+                statusTitle.setText(getString(R.string.status_not_running));
                 statusTitle.setTextColor(0xFFCBD5E1);
-                statusDetail.setText("点击中间的圆形按钮启动服务。");
-                setPrimaryState("启动", 0xFF0891B2, 0xFF2563EB, true);
+                statusDetail.setText(getString(R.string.detail_not_running));
+                setPrimaryState(getString(R.string.button_start), 0xFF0891B2, 0xFF2563EB, true);
                 setOpenEnabled(false);
             }
         } catch (Exception e) {
-            statusTitle.setText("状态读取失败");
+            statusTitle.setText(getString(R.string.status_read_failed));
             statusTitle.setTextColor(0xFFF87171);
-            statusDetail.setText(e.getMessage() == null ? "无法读取服务状态。" : e.getMessage());
-            setPrimaryState("重试", 0xFF0891B2, 0xFF2563EB, true);
+            statusDetail.setText(e.getMessage() == null ? getString(R.string.status_error_generic) : e.getMessage());
+            setPrimaryState(getString(R.string.button_retry), 0xFF0891B2, 0xFF2563EB, true);
             setOpenEnabled(false);
         }
     }

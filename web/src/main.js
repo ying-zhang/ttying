@@ -4,6 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { SearchAddon } from "@xterm/addon-search";
 import "@xterm/xterm/css/xterm.css";
+import { tr, isZh } from "./i18n";
 
 const termEl = document.getElementById("terminal");
 const statusEl = document.getElementById("status");
@@ -11,6 +12,9 @@ const modal = document.getElementById("auth-modal");
 const form = document.getElementById("auth-form");
 const tokenInput = document.getElementById("token");
 const authError = document.getElementById("auth-error");
+const authTitle = document.getElementById("auth-title");
+const authLabel = document.getElementById("auth-label");
+const authSubmit = document.getElementById("auth-submit");
 const badgeEl = document.getElementById("readonly-badge");
 const reconnectBtn = document.getElementById("btn-reconnect");
 const keyBar = document.getElementById("mobile-keys");
@@ -142,7 +146,7 @@ function applyTheme() {
   const resolved = resolvedTheme();
   document.documentElement.dataset.theme = resolved;
   term.options.theme = resolved === "dark" ? DARK_THEME : LIGHT_THEME;
-  themeBtn.textContent = themeMode === "auto" ? "Auto" : themeMode === "dark" ? "Dark" : "Light";
+  themeBtn.textContent = themeMode === "auto" ? tr("theme_auto") : themeMode === "dark" ? tr("theme_dark") : tr("theme_light");
   themeBtn.title = `Theme: ${themeBtn.textContent}`;
 }
 function cycleTheme() {
@@ -168,7 +172,7 @@ function setReadOnly(value) {
   term.options.disableStdin = value;
   badgeEl.classList.toggle("hidden", !value);
 }
-function showReconnect(label = "Reconnect") {
+function showReconnect(label = tr("reconnect")) {
   reconnectBtn.textContent = label;
   reconnectBtn.classList.remove("hidden");
 }
@@ -217,8 +221,8 @@ async function authenticateAndConnect() {
   if (generation !== connectionGeneration) return;
   if (result === "ok") { token = null; tokenInput.value = ""; hideAuth(); connect(); }
   else if (result === "auth") {
-    setStatus("Authentication required", "error");
-    showAuth("Enter the access token.");
+    setStatus(tr("auth_required"), "error");
+    showAuth(tr("enter_token"));
   } else { scheduleReconnect(); }
 }
 
@@ -238,7 +242,7 @@ function sendInput(data) {
   if (!attached || readOnly || !ws || ws.readyState !== WebSocket.OPEN) return;
   const bytes = new TextEncoder().encode(data);
   if (bytes.length > 65536 || ws.bufferedAmount > 1024 * 1024) {
-    setStatus("Input too large or connection busy; paste smaller chunks", "error");
+    setStatus(tr("input_too_large"), "error");
     return;
   }
   sendRaw(CMD_INPUT, bytes);
@@ -297,14 +301,14 @@ function scheduleReconnect() {
   if (reconnectTimer) return;
   reconnectAttempt += 1;
   if (reconnectAttempt > MAX_RECONNECT) {
-    setStatus("Disconnected — session kept for 5 minutes", "error");
-    showReconnect(storedSessionId() ? "Reconnect" : "Restart");
+    setStatus(tr("disconnected"), "error");
+    showReconnect(storedSessionId() ? tr("reconnect") : tr("restart"));
     return;
   }
   const delay = Math.min(1000 * 2 ** (reconnectAttempt - 1), 10000) + Math.floor(Math.random() * 250);
   const seconds = Math.ceil(delay / 1000);
-  setStatus(`Connection lost — reconnecting in ${seconds}s (${reconnectAttempt}/${MAX_RECONNECT})`, "reconnecting");
-  showReconnect("Reconnect now");
+  setStatus(tr("connection_lost", seconds, reconnectAttempt, MAX_RECONNECT), "reconnecting");
+  showReconnect(tr("reconnect_now"));
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     void authenticateAndConnect();
@@ -317,13 +321,13 @@ function connect() {
   manualClose = false;
   sessionEnded = false;
   hideReconnect();
-  setStatus("Connecting…", "connecting");
+  setStatus(tr("connecting"), "connecting");
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   ws = new WebSocket(`${proto}//${location.host}/ws`);
   ws.binaryType = "arraybuffer";
   ws.onopen = () => {
     startHeartbeat();
-    setStatus("Attaching…", "connecting");
+    setStatus(tr("attaching"), "connecting");
     sendJson(CMD_ATTACH, {
       session: storedSessionId(),
       cols: term.cols,
@@ -352,7 +356,7 @@ function connect() {
         setReadOnly(!!info.read_only);
         hideAuth();
         hideReconnect();
-        setStatus(info.history_truncated ? "Connected — partial history; redraw the application if needed" : (info.reattached ? "Connected — session restored" : "Connected — new session"), "connected");
+        setStatus(info.history_truncated ? tr("partial_history") : (info.reattached ? tr("connected_restored") : tr("connected_new")), "connected");
         setTimeout(() => { fit.fit(); sendResize(); term.focus(); }, 0);
       } catch { /* ignore malformed control message */ }
       return;
@@ -363,17 +367,17 @@ function connect() {
         if (info.code === "session_ended") {
           sessionEnded = true;
           setStoredSessionId(null);
-          setStatus("Shell exited", "error");
-          showReconnect("Restart");
-          term.write("\r\n\x1b[31m[shell exited — click Restart for a new session]\x1b[0m\r\n");
+          setStatus(tr("shell_exited"), "error");
+          showReconnect(tr("restart"));
+          term.write("\r\n\x1b[31m" + tr("shell_exited_hint") + "\x1b[0m\r\n");
         } else {
-          setStatus(`Error: ${info.message || info.code}`, "error");
+          setStatus(tr("error_prefix") + (info.message || info.code), "error");
         }
       } catch { /* ignore malformed control message */ }
     }
   };
   ws.onerror = () => {
-    if (!sessionEnded) setStatus("Connection error", "error");
+    if (!sessionEnded) setStatus(tr("connection_error"), "error");
   };
   ws.onclose = () => {
     stopHeartbeat();
@@ -386,12 +390,12 @@ function connect() {
 async function copySelection() {
   const selection = term.getSelection();
   if (!selection) {
-    setStatus("No text selected", "");
+    setStatus(tr("no_selection"), "");
     return;
   }
   try {
     await navigator.clipboard.writeText(selection);
-    setStatus("Copied selection", "connected");
+    setStatus(tr("copied"), "connected");
   } catch {
     try {
       const area = document.createElement("textarea");
@@ -402,23 +406,23 @@ async function copySelection() {
       area.select();
       document.execCommand("copy");
       area.remove();
-      setStatus("Copied selection", "connected");
+      setStatus(tr("copied"), "connected");
     } catch {
-      setStatus("Copy failed — open over HTTPS or localhost", "error");
+      setStatus(tr("copy_failed"), "error");
     }
   }
 }
 
 async function pasteClipboard() {
   if (readOnly) {
-    setStatus("Read-only session", "error");
+    setStatus(tr("read_only"), "error");
     return;
   }
   try {
     const text = await navigator.clipboard.readText();
     if (text) term.paste(text);
   } catch {
-    setStatus("Paste unavailable — use browser context menu", "error");
+    setStatus(tr("paste_unavailable"), "error");
   }
 }
 
@@ -495,6 +499,23 @@ function syncViewportHeight() {
   if (window.visualViewport && visualViewport.height > 0) {
     document.documentElement.style.setProperty("--app-height", `${visualViewport.height}px`);
   }
+}
+
+function applyLocale() {
+  document.documentElement.lang = isZh ? "zh-CN" : "en";
+  searchInput.placeholder = tr("search_placeholder");
+  searchPrev.title = tr("search_prev");
+  searchNext.title = tr("search_next");
+  searchClose.title = tr("search_close");
+  authTitle.textContent = tr("auth_title");
+  authLabel.textContent = tr("auth_label");
+  authSubmit.textContent = tr("auth_submit");
+  keysBtn.textContent = tr("keys");
+  ctxCopy.textContent = tr("copy");
+  ctxPaste.textContent = tr("paste");
+  ctxSelectAll.textContent = tr("select_all");
+  applyTheme();
+  if (statusEl.dataset.state === "") statusEl.textContent = tr("connecting");
 }
 
 function setupTerminalListeners() {
@@ -582,7 +603,7 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("pageshow", (event) => {
   if (event.persisted) {
     boot().catch((err) => {
-      setStatus("Reconnect failed", "error");
+      setStatus(tr("reconnect_failed"), "error");
       console.error(err);
     });
   }
@@ -608,7 +629,7 @@ async function copyText(text) {
   if (!text) return false;
   try {
     await navigator.clipboard.writeText(text);
-    setStatus("Copied selection", "connected");
+    setStatus(tr("copied"), "connected");
     return true;
   } catch {
     try {
@@ -620,10 +641,10 @@ async function copyText(text) {
       area.select();
       document.execCommand("copy");
       area.remove();
-      setStatus("Copied selection", "connected");
+      setStatus(tr("copied"), "connected");
       return true;
     } catch {
-      setStatus("Copy failed — open over HTTPS or localhost", "error");
+      setStatus(tr("copy_failed"), "error");
       return false;
     }
   }
@@ -651,7 +672,7 @@ termEl.addEventListener("contextmenu", (event) => {
 ctxCopy.addEventListener("click", () => {
   hideContextMenu();
   const selected = term.getSelection();
-  if (selected) void copyText(selected); else setStatus("No text selected", "");
+  if (selected) void copyText(selected); else setStatus(tr("no_selection"), "");
 });
 ctxPaste.addEventListener("click", () => {
   hideContextMenu();
@@ -668,8 +689,9 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") hideContextMenu();
 });
 
+applyLocale();
 setupTerminalListeners();
 boot().catch((err) => {
-  setStatus("Startup error", "error");
+  setStatus(tr("startup_error"), "error");
   console.error(err);
 });

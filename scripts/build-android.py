@@ -109,7 +109,7 @@ def main() -> None:
 
     BUILD.mkdir(parents=True, exist_ok=True)
     DIST.mkdir(parents=True, exist_ok=True)
-    for directory in [BUILD / "classes", BUILD / "dex"]:
+    for directory in [BUILD / "classes", BUILD / "dex", BUILD / "gen"]:
         if directory.exists():
             shutil.rmtree(directory)
         directory.mkdir(parents=True)
@@ -124,14 +124,16 @@ def main() -> None:
         env_extra={"ANDROID_NDK_HOME": str(ndk_path), "ANDROID_NDK_ROOT": str(ndk_path)},
     )
 
-    java_files = [str(path) for path in sorted((ANDROID / "src").rglob("*.java"))]
-    run([javac, "--release", "11", "-classpath", str(jar_path), "-d", str(BUILD / "classes"), *java_files])
-    run([jar, "cf", str(BUILD / "classes.jar"), "-C", str(BUILD / "classes"), "."])
     run([str(aapt2), "compile", "--dir", str(ANDROID / "res"), "-o", str(BUILD / "resources.zip")])
-    run([str(d8), "--lib", str(jar_path), "--min-api", "26", "--output", str(BUILD / "dex"), str(BUILD / "classes.jar")])
     run([str(aapt2), "link", "-o", str(BUILD / "base.apk"), "-I", str(jar_path),
          "-R", str(BUILD / "resources.zip"), "--manifest", str(ANDROID / "AndroidManifest.xml"),
-         "--min-sdk-version", "26", "--target-sdk-version", "35", "--auto-add-overlay"])
+         "--java", str(BUILD / "gen"), "--min-sdk-version", "26",
+         "--target-sdk-version", "35", "--auto-add-overlay"])
+    java_files = [str(path) for path in sorted((BUILD / "gen").rglob("*.java"))]
+    java_files += [str(path) for path in sorted((ANDROID / "src").rglob("*.java"))]
+    run([javac, "--release", "11", "-classpath", str(jar_path), "-d", str(BUILD / "classes"), *java_files])
+    run([jar, "cf", str(BUILD / "classes.jar"), "-C", str(BUILD / "classes"), "."])
+    run([str(d8), "--lib", str(jar_path), "--min-api", "26", "--output", str(BUILD / "dex"), str(BUILD / "classes.jar")])
     run([sys.executable, str(ROOT / "scripts" / "package-apk.py")])
     run([str(zipalign), "-P", "16", "-f", "4", str(BUILD / "unsigned.apk"), str(BUILD / "aligned.apk")])
     output = DIST / "ttying-android-arm64.apk"

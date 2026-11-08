@@ -44,7 +44,7 @@ public class TtyingService extends Service {
     private void createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
-                CHANNEL_ID, "终端服务", NotificationManager.IMPORTANCE_LOW);
+                CHANNEL_ID, getString(R.string.notification_channel_name), NotificationManager.IMPORTANCE_LOW);
             getSystemService(NotificationManager.class).createNotificationChannel(channel);
         }
     }
@@ -54,8 +54,8 @@ public class TtyingService extends Service {
         PendingIntent pi = PendingIntent.getActivity(
             this, 0, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         return new Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("ttying 终端服务")
-            .setContentText("本机 Web 终端正在运行，点击返回应用")
+            .setContentTitle(getString(R.string.notification_title))
+            .setContentText(getString(R.string.notification_text))
             .setSmallIcon(android.R.drawable.stat_sys_upload)
             .setContentIntent(pi)
             .setOngoing(true)

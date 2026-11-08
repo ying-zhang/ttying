@@ -41,10 +41,10 @@
 
   <div id="auth-modal" class="hidden">
     <form id="auth-form">
-      <h2>Authentication required</h2>
-      <label for="token">Access token</label>
+      <h2 id="auth-title">Authentication required</h2>
+      <label for="token" id="auth-label">Access token</label>
       <input id="token" autocomplete="off" autocapitalize="off" spellcheck="false" type="password">
-      <button type="submit">Connect</button>
+      <button type="submit" id="auth-submit">Connect</button>
       <div id="auth-error"></div>
     </form>
   </div>

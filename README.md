@@ -12,6 +12,16 @@ Android arm64   ->  ttying-android-arm64.apk
 
 The Android app only starts, stops, and reports the status of the local server. Terminal interaction happens in the system browser. The application id is `cn.z.ttying`.
 
+Current release: **v1.8.0** · [GitHub repository](https://github.com/ying-zhang/ttying) · [Releases](https://github.com/ying-zhang/ttying/releases)
+
+## Development disclosure
+
+ttying was developed with extensive AI assistance. The AI assistant contributed architecture and protocol design, Rust and frontend implementation, security review, regression tests, build/release automation, Android UI work, and documentation. Human review, requirements, testing direction, and product decisions were provided by the project owner.
+
+According to the project owner's records, development consumed approximately **290 million tokens**, at an approximate cost of **CNY 10**. This is a usage record, not a claim about the cost of every future build or deployment.
+
+The code should still be independently reviewed before deployment in a security-sensitive environment.
+
 ## Features
 
 - Persistent PTY sessions with a five-minute detach grace period.
@@ -22,7 +32,8 @@ The Android app only starts, stops, and reports the status of the local server. 
 - Origin/Host validation, login rate limiting, WebSocket size limits, and connection timeouts.
 - xterm.js search, safe web links, copy/paste shortcuts, persisted font size, and automatic/dark/light themes.
 - Mobile special-key toolbar and viewport handling for the software keyboard.
-- A large circular start/stop control and natural Chinese status UI on Android.
+- A large circular start/stop control and natural status UI on Android.
+- Chinese/English UI: native Android strings follow the system language; the browser UI follows the browser language.
 - No built-in TLS: deploy behind a trusted HTTPS reverse proxy or VPN.
 
 ## References and design inspiration

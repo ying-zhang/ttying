@@ -12,6 +12,16 @@ Android arm64   ->  ttying-android-arm64.apk
 
 Android APK 只负责启动、停止和显示本地服务状态，实际终端交互在系统浏览器中完成。Android 包名为 `cn.z.ttying`。
 
+当前版本：**v1.8.0** · [GitHub 仓库](https://github.com/ying-zhang/ttying) · [发布页](https://github.com/ying-zhang/ttying/releases)
+
+## 开发说明
+
+ttying 在开发过程中使用了大量 AI 辅助。AI 助手参与了架构与协议设计、Rust 和前端实现、安全审查、回归测试、构建/发布自动化、Android 界面和文档整理；项目负责人提供了需求、产品决策、人工审查和测试方向。
+
+根据项目负责人的记录，本项目开发累计消耗约 **2.9 亿词元**，成本约 **人民币 10 元**。这是历史用量记录，不代表每次构建或部署的成本。
+
+在安全敏感的生产环境中部署前，仍建议进行独立代码审查。
+
 ## 功能
 
 - PTY 会话在 WebSocket 断开后保留 5 分钟，支持刷新、bfcache 恢复和网络重连重新附着。
@@ -21,7 +31,8 @@ Android APK 只负责启动、停止和显示本地服务状态，实际终端�
 - Host/Origin 校验、登录限流、WebSocket 大小限制和连接超时。
 - xterm.js 搜索、安全链接、复制粘贴快捷键、字体大小和自动/深色/浅色主题。
 - 移动端特殊键工具栏和软键盘 viewport 适配。
-- Android 使用中央圆形启动/停止大按钮和中文自然语言状态。
+- Android 使用中央圆形启动/停止大按钮和自然语言状态。
+- 支持中英文界面：Android 原生字符串跟随系统语言，浏览器界面跟随浏览器语言。
 - 不内置 TLS，生产环境应放在可信 HTTPS 反向代理或 VPN 后面。
 
 ## 参考项目与设计来源

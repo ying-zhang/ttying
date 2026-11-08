@@ -7,7 +7,7 @@ const src = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
 const functions = src.slice(src.indexOf('async function login()'), src.indexOf('function makeFrame'));
 function context(fetch) {
   const state = { fetch, AbortController, token: 'test-token', tokenInput: { value: 'test-token' },
-    loginController: null, connectionGeneration: 0, setTimeout: () => 1, clearTimeout: () => {},
+    loginController: null, connectionGeneration: 0, setTimeout: () => 1, clearTimeout: () => {}, tr: (key) => key,
     setStatus: () => {}, hideAuth: () => {}, auth: 0, retry: 0, connections: 0 };
   state.showAuth = () => state.auth++;
   state.scheduleReconnect = () => state.retry++;

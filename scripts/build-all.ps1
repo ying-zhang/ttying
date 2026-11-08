@@ -147,7 +147,7 @@ try {
 } finally { Pop-Location }
 
 Write-Host "== apk =="
-foreach ($cleanup in @("$Build\classes", "$Build\dex")) {
+foreach ($cleanup in @("$Build\classes", "$Build\dex", "$Build\gen")) {
     $absolute = [IO.Path]::GetFullPath($cleanup)
     $buildPrefix = [IO.Path]::GetFullPath($Build).TrimEnd('\') + '\'
     if (-not $absolute.StartsWith($buildPrefix, [StringComparison]::OrdinalIgnoreCase)) { throw "Unsafe cleanup path: $absolute" }
@@ -158,19 +158,20 @@ foreach ($cleanup in @("$Build\classes", "$Build\dex")) {
     }
     if (Test-Path -LiteralPath $absolute) { Remove-Item -LiteralPath $absolute -Recurse -Force }
 }
-New-Item -ItemType Directory -Force "$Build\classes", "$Build\dex" | Out-Null
+New-Item -ItemType Directory -Force "$Build\classes", "$Build\dex", "$Build\gen" | Out-Null
 Push-Location $Root
 try {
     & $Aapt2 compile --dir android\res -o "$Build\resources.zip"
     if ($LASTEXITCODE -ne 0) { throw "aapt2 compile failed" }
-    & $Javac --release 11 -classpath $AndroidJar -d "$Build\classes" android\src\cn\z\ttying\app\*.java
+    & $Aapt2 link -o "$Build\base.apk" -I $AndroidJar -R "$Build\resources.zip" --manifest android\AndroidManifest.xml --java "$Build\gen" --min-sdk-version 26 --target-sdk-version 35 --auto-add-overlay
+    if ($LASTEXITCODE -ne 0) { throw "aapt2 link failed" }
+    $javaFiles = @(Get-ChildItem "$Build\gen" -Recurse -Filter *.java | ForEach-Object FullName) + @(Get-ChildItem android\src\cn\z\ttying\app\*.java | ForEach-Object FullName)
+    & $Javac --release 11 -classpath $AndroidJar -d "$Build\classes" @javaFiles
     if ($LASTEXITCODE -ne 0) { throw "javac failed" }
     & $JarExe cf "$Build\classes.jar" -C "$Build\classes" .
     if ($LASTEXITCODE -ne 0) { throw "jar failed" }
     & $D8 --lib $AndroidJar --min-api 26 --output "$Build\dex" "$Build\classes.jar"
     if ($LASTEXITCODE -ne 0) { throw "d8 failed" }
-    & $Aapt2 link -o "$Build\base.apk" -I $AndroidJar -R "$Build\resources.zip" --manifest android\AndroidManifest.xml --min-sdk-version 26 --target-sdk-version 35 --auto-add-overlay
-    if ($LASTEXITCODE -ne 0) { throw "aapt2 failed" }
 } finally { Pop-Location }
 
 & $Python (Join-Path $Root "scripts\package-apk.py")
