@@ -12,7 +12,7 @@ Android arm64   ->  ttying-android-arm64.apk
 
 Android APK 只负责启动、停止和显示本地服务状态，实际终端交互在系统浏览器中完成。Android 包名为 `cn.z.ttying`。
 
-当前版本：**v1.8.0** · [GitHub 仓库](https://github.com/ying-zhang/ttying) · [发布页](https://github.com/ying-zhang/ttying/releases)
+当前版本：**v1.8.0** · [GitHub 仓库](https://github.com/ying-zhang/ttying) · [发布页](https://github.com/ying-zhang/ttying/releases) · [项目主页](https://ying-zhang.github.io/ttying/zh-CN/)
 
 ## 开发说明
 

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ttying - secure web terminal</title>
+  <meta name="description" content="A secure Rust web terminal with persistent PTY sessions, xterm.js, token authentication, Windows/Linux/Android builds, INI configuration, and Cloudflare Tunnel support.">
+  <meta property="og:title" content="ttying - secure web terminal">
+  <meta property="og:description" content="A secure Rust web terminal with persistent PTY sessions, browser xterm.js, and cross-platform builds.">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="icon" href="assets/ttying-icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top"><img src="assets/ttying-icon.png" alt="ttying icon"><span>ttying</span><small>v1.8.0</small></a>
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#screenshots">Screenshots</a>
+        <a href="#quickstart">Quick start</a>
+        <a href="#security">Security</a>
+        <a href="#architecture">Architecture</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="lang-toggle" href="zh-CN/">中文</a>
+        <a class="github-link" href="https://github.com/ying-zhang/ttying">GitHub ↗</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero wrap">
+      <div>
+        <div class="eyebrow">Rust · PTY · xterm.js</div>
+        <h1>Your terminal,<br><em>in the browser.</em></h1>
+        <p>A small, security-focused web terminal with persistent PTY sessions, token authentication, INI configuration, and a native Android control app.</p>
+        <div class="actions">
+          <a class="btn primary" href="https://github.com/ying-zhang/ttying/releases/latest">Download v1.8.0</a>
+          <a class="btn ghost" href="#quickstart">Quick start →</a>
+        </div>
+        <div class="platforms">
+          <span><i class="dot"></i>Windows x86_64</span>
+          <span><i class="dot"></i>Linux x86_64</span>
+          <span><i class="dot"></i>Android arm64</span>
+        </div>
+      </div>
+      <div class="terminal" aria-label="ttying terminal preview">
+        <div class="term-head"><i class="term-dot"></i><i class="term-dot"></i><i class="term-dot"></i><span class="term-name">ttying — localhost</span></div>
+        <div class="term-body">
+          <div><span class="prompt">$</span> <span class="cmd">ttying --config ttying.ini</span></div>
+          <div class="ok">✓ listening on 127.0.0.1:7755</div>
+          <div class="dim">token: fragment bootstrap · cookie: HttpOnly</div>
+          <div class="dim">websocket: authenticated · origin checked</div>
+          <div class="dim">sessions: persistent · history: 512 KiB</div>
+          <br>
+          <div><span class="prompt">$</span> <span class="cmd">whoami</span></div>
+          <div>ttying-user</div>
+          <div><span class="prompt">$</span> <span class="cursor"></span></div>
+        </div>
+      </div>
+    </section>
+    <section id="features" class="wrap">
+      <div class="section-head">
+        <div class="kicker">Built for real terminal work</div>
+        <h2>Small surface. Serious behavior.</h2>
+        <p>A focused Rust server and a browser UI designed to feel like a terminal, not a web form.</p>
+      </div>
+      <div class="grid">
+        <div class="card"><div class="glyph">⌘</div><h3>Persistent PTY sessions</h3><p>Refresh or reconnect and return to the same shell for five minutes without losing the process.</p></div>
+        <div class="card"><div class="glyph">↻</div><h3>Reconnect and replay</h3><p>Sequence-numbered output history, visible truncation notices, and reconnect backoff.</p></div>
+        <div class="card"><div class="glyph">⌁</div><h3>Token-first auth</h3><p>Fragment bootstrap, HttpOnly SameSite cookie, Origin/Host checks, and login rate limiting.</p></div>
+        <div class="card"><div class="glyph">▣</div><h3>Browser terminal</h3><p>xterm.js with search, safe links, copy/paste, themes, font sizing, and mobile special keys.</p></div>
+        <div class="card"><div class="glyph">◈</div><h3>Three platforms</h3><p>Windows and Linux binaries plus an Android arm64 foreground-service APK. Terminal work stays in the browser.</p></div>
+        <div class="card"><div class="glyph">☁</div><h3>Proxy ready</h3><p>Cloudflare Tunnel and HTTPS reverse proxies supported with Secure cookies and public URL bootstrap.</p></div>
+      </div>
+    </section>
+
+    <section id="screenshots" class="wrap">
+      <div class="section-head">
+        <div class="kicker">Screenshots</div>
+        <h2>Command line and Android UI.</h2>
+        <p>The Android native shell follows the system language. The terminal itself is the real PTY, rendered by xterm.js in the browser.</p>
+      </div>
+      <div class="gallery">
+        <div class="shot wide">
+          <img src="assets/cli-en.png" alt="ttying command line startup screenshot">
+          <div class="shot-body"><h3>Command-line startup</h3><p>Start with `--config`; the access URL is printed with an encoded fragment token. CLI log messages are English.</p></div>
+        </div>
+      </div>
+      <div class="lang-pair" style="margin-top:16px">
+        <div class="shot"><img src="assets/android-en.png" alt="Android app English UI"><div class="shot-body"><h3>Android · English</h3><p>Native UI in English when the system language is English.</p></div></div>
+        <div class="shot"><img src="assets/android-zh.png" alt="Android app Chinese UI"><div class="shot-body"><h3>Android · 中文</h3><p>Native UI in Chinese when the system language is Chinese.</p></div></div>
+      </div>
+    </section>
+    <section id="quickstart" class="wrap">
+      <div class="quick">
+        <div>
+          <div class="kicker">Get running</div>
+          <div class="section-head" style="margin-bottom:18px">
+            <h2>One config file. One command.</h2>
+            <p>Download a release, copy the INI example, and keep the service on loopback.</p>
+          </div>
+          <div class="quote">Command-line flags override INI values. The default port is 7755; Android falls back to an ephemeral port if it is occupied.</div>
+          <p style="margin-top:22px"><a class="btn ghost" href="https://github.com/ying-zhang/ttying/releases/latest">View all releases ↗</a></p>
+        </div>
+        <div class="quick-card">
+          <div class="tabs">
+            <button class="tab active" data-tab="win" type="button">Windows</button>
+            <button class="tab" data-tab="linux" type="button">Linux</button>
+            <button class="tab" data-tab="android" type="button">Android</button>
+          </div>
+          <button class="copy" type="button" data-copy="code">Copy</button>
+          <pre id="code-win"><code><span class="comment"># download ttying-windows-x86_64.exe and ttying.ini.example</span>
+<span class="comment"># edit ttying.ini, then run:</span>
+<span class="cmd-text">.\ttying.exe --config .\ttying.ini</span>
+
+<span class="comment"># equivalent explicit command:</span>
+<span class="cmd-text">.\ttying.exe --token-file .\token.txt -W -- cmd.exe</span></code></pre>
+          <pre id="code-linux" hidden><code><span class="comment"># download ttying-linux-x86_64 and ttying.ini.example</span>
+<span class="cmd-text">chmod +x ttying-linux-x86_64</span>
+<span class="cmd-text">./ttying-linux-x86_64 --config ./ttying.ini</span>
+
+<span class="comment"># HTTPS proxy example:</span>
+<span class="cmd-text">./ttying-linux-x86_64 --token-file ./token.txt -W \</span>
+<span class="cmd-text">  --secure-cookie --public-url https://tty.example.cn -- bash</span></code></pre>
+          <pre id="code-android" hidden><code><span class="comment"># install the release APK</span>
+<span class="cmd-text">adb install -r ttying-android-arm64.apk</span>
+
+<span class="comment"># then: open ttying → tap Start → Open terminal in browser</span>
+<span class="comment"># native UI follows the system language</span></code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture" class="wrap">
+      <div class="section-head">
+        <div class="kicker">Under the hood</div>
+        <h2>A WebSocket is only a view.</h2>
+        <p>The PTY session is the durable object. Browsers attach, detach, and reconnect without killing the shell.</p>
+      </div>
+      <div class="architecture">
+        <div class="arch-node"><strong>Browser</strong><span>xterm.js + mobile keys</span></div>
+        <div class="arch-node"><strong>Axum server</strong><span>HTTP · auth · WebSocket</span></div>
+        <div class="arch-node"><strong>PTY session</strong><span>5 min detach · 512 KiB history</span></div>
+        <div class="arch-node"><strong>Shell</strong><span>cmd.exe · bash · custom</span></div>
+      </div>
+    </section>
+    <section id="security" class="wrap">
+      <div class="section-head">
+        <div class="kicker">Security model</div>
+        <h2>Loopback by default.</h2>
+        <p>Designed for a trusted reverse proxy or VPN, with explicit behavior at every boundary.</p>
+      </div>
+      <div class="security">
+        <div class="security-list">
+          <div class="security-item"><b>01</b><span>Binds to 127.0.0.1:7755 by default; token auth is mandatory.</span></div>
+          <div class="security-item"><b>02</b><span>URL fragments bootstrap an HttpOnly, SameSite=Strict session cookie.</span></div>
+          <div class="security-item"><b>03</b><span>Host/Origin validation and WebSocket size/time limits are enforced.</span></div>
+          <div class="security-item"><b>04</b><span>Read-only by default; input requires an explicit -W flag.</span></div>
+        </div>
+        <div class="notice"><strong>HTTPS proxy reminder</strong><br>Use <code>--secure-cookie</code> when TLS terminates at Cloudflare or another reverse proxy. Otherwise the browser sends an HTTPS Origin while the server expects HTTP, and the WebSocket may be rejected.</div>
+      </div>
+    </section>
+
+    <section id="about" class="wrap">
+      <div class="section-head">
+        <div class="kicker">Open source</div>
+        <h2>Built with AI, reviewed as software.</h2>
+        <p>ttying is an independent Rust implementation inspired by ttyd and other web terminal projects. It is not a fork of their source code.</p>
+      </div>
+      <div class="about">
+        <div class="about-card"><h3>Development disclosure</h3><p>AI assisted with architecture, implementation, security review, tests, build automation, Android UI, and documentation. The project owner provided requirements, product decisions, review, and test direction.</p></div>
+        <div class="about-card"><h3>Recorded effort</h3><p>According to project records, development consumed approximately <span class="cost">290 million tokens</span>, at an approximate cost of <span class="cost">CNY 10</span>. This is a historical usage record, not a deployment cost estimate.</p></div>
+        <div class="about-card"><h3>References</h3><p>ttyd, ttyd-rs, ttyd-rs-wolegca, krust, termpair, sshx, and webterm informed the interaction model. See the README for links and attribution.</p></div>
+        <div class="about-card"><h3>License</h3><p>BSD 3-Clause. Review the source and security notes before using ttying in a sensitive environment.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap footer-inner">
+      <span>ttying · secure web terminal · BSD-3-Clause</span>
+      <div class="footer-links">
+        <a href="https://github.com/ying-zhang/ttying">GitHub</a>
+        <a href="https://github.com/ying-zhang/ttying/releases">Releases</a>
+        <a href="https://github.com/ying-zhang/ttying/blob/main/README.md">README</a>
+        <a href="zh-CN/">中文</a>
+      </div>
+    </div>
+  </footer>
+  <script src="site.js"></script>
+</body>
+</html>
