@@ -34,6 +34,7 @@ The code should still be independently reviewed before deployment in a security-
 - Mobile special-key toolbar and viewport handling for the software keyboard.
 - A large circular start/stop control and natural status UI on Android.
 - Chinese/English UI: native Android strings follow the system language; the browser UI follows the browser language.
+- INI configuration via `--config`, with command-line arguments taking precedence.
 - No built-in TLS: deploy behind a trusted HTTPS reverse proxy or VPN.
 
 ## References and design inspiration
@@ -97,6 +98,43 @@ adb install -r ttying-android-arm64.apk
 ```
 
 Open the app, press the circular **启动** button, then **在浏览器中打开终端**. The server listens on loopback only. Closing the UI does not stop the foreground service; use the circular **停止** button to stop it.
+
+## INI configuration
+
+Copy `ttying.ini.example` to a private file and start with:
+
+```powershell
+ttying.exe --config .\ttying.ini
+```
+
+Command-line arguments override INI values. Relative `token_file` paths are resolved relative to the INI file.
+
+```ini
+[server]
+bind = 127.0.0.1
+port = 7755
+public_url = https://tty.example.cn
+
+[security]
+token_file = token.txt
+secure_cookie = true
+max_clients = 10
+allowed_origins = https://tty.example.cn
+
+[terminal]
+writable = true
+command = cmd.exe /k
+```
+
+Supported sections and keys:
+
+| Section | Keys |
+| --- | --- |
+| `[server]` | `bind`, `port`, `public_url` |
+| `[security]` | `token`, `token_file`, `secure_cookie`, `max_clients`, `allowed_origins` |
+| `[terminal]` | `writable`, `command` |
+
+Unknown sections or keys are rejected. Use quotes around command arguments containing spaces. The INI file may contain a token, so restrict its permissions, or use `token_file` and protect that file instead.
 
 ### Cloudflare Tunnel / HTTPS reverse proxy
 

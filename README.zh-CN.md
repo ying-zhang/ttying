@@ -33,6 +33,7 @@ ttying 在开发过程中使用了大量 AI 辅助。AI 助手参与了架构与
 - 移动端特殊键工具栏和软键盘 viewport 适配。
 - Android 使用中央圆形启动/停止大按钮和自然语言状态。
 - 支持中英文界面：Android 原生字符串跟随系统语言，浏览器界面跟随浏览器语言。
+- 支持 `--config` 读取 INI 配置，命令行参数优先级更高。
 - 不内置 TLS，生产环境应放在可信 HTTPS 反向代理或 VPN 后面。
 
 ## 参考项目与设计来源
@@ -96,6 +97,43 @@ adb install -r ttying-android-arm64.apk
 ```
 Android UI starts the foreground service; terminal interaction is in the browser.
 打开应用，点击中央圆形启动按钮，再点击在浏览器中打开终端。服务只监听 127.0.0.1；关闭界面不会停止前台服务。
+
+## INI 配置文件
+
+复制 `ttying.ini.example` 为本地配置文件，然后启动：
+
+```powershell
+ttying.exe --config .	tying.ini
+```
+
+命令行参数会覆盖 INI 中的同名配置。`token_file` 使用相对路径时，相对于 INI 文件所在目录解析。
+
+```ini
+[server]
+bind = 127.0.0.1
+port = 7755
+public_url = https://tty.example.cn
+
+[security]
+token_file = token.txt
+secure_cookie = true
+max_clients = 10
+allowed_origins = https://tty.example.cn
+
+[terminal]
+writable = true
+command = cmd.exe /k
+```
+
+支持的分组和键：
+
+| 分组 | 键 |
+| --- | --- |
+| `[server]` | `bind`、`port`、`public_url` |
+| `[security]` | `token`、`token_file`、`secure_cookie`、`max_clients`、`allowed_origins` |
+| `[terminal]` | `writable`、`command` |
+
+未知分组或键会报错。包含空格的命令参数需要使用引号。INI 中可以直接放 token，但应限制文件权限；更推荐使用 `token_file` 并保护 token 文件。
 
 ### Cloudflare Tunnel / HTTPS 反向代理
 

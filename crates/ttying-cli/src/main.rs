@@ -1,7 +1,9 @@
 mod secret;
 use anyhow::{Context, Result};
-use clap::Parser;
-use std::path::PathBuf;
+use clap::parser::ValueSource;
+use clap::{CommandFactory, FromArgMatches, Parser};
+use configparser::ini::Ini;
+use std::path::{Path, PathBuf};
 use ttying_core::{default_shell, random_token, start_background, ServerConfig, DEFAULT_PORT};
 
 #[cfg(windows)]
@@ -35,7 +37,11 @@ struct Args {
     allowed_origins: Vec<String>,
     #[arg(long, hide = true)]
     service: bool,
-    #[arg(long, hide = true)]
+    #[arg(
+        long,
+        value_name = "FILE",
+        help = "Load defaults from an INI configuration file"
+    )]
     config: Option<PathBuf>,
     #[arg(long)]
     install_service: bool,
@@ -89,6 +95,143 @@ fn choose_token(args: &Args) -> Result<String> {
         return load_or_create_token(file, !args.print_url);
     }
     Ok(random_token())
+}
+
+fn parse_ini_bool(value: &str, key: &str) -> Result<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Ok(true),
+        "0" | "false" | "no" | "off" => Ok(false),
+        _ => anyhow::bail!("{key} must be true or false"),
+    }
+}
+
+fn split_command(value: &str) -> Result<Vec<String>> {
+    let mut result = Vec::new();
+    let mut current = String::new();
+    let mut quote: Option<char> = None;
+    let mut started = false;
+    for ch in value.chars() {
+        match quote {
+            Some(q) if ch == q => quote = None,
+            Some(_) => current.push(ch),
+            None if ch == '\'' || ch == '"' => {
+                quote = Some(ch);
+                started = true;
+            }
+            None if ch.is_whitespace() => {
+                if started {
+                    result.push(std::mem::take(&mut current));
+                    started = false;
+                }
+            }
+            None => {
+                current.push(ch);
+                started = true;
+            }
+        }
+    }
+    anyhow::ensure!(quote.is_none(), "unclosed quote in command");
+    if started {
+        result.push(current);
+    }
+    anyhow::ensure!(!result.is_empty(), "command must not be empty");
+    Ok(result)
+}
+
+fn apply_config(args: &mut Args, matches: &clap::ArgMatches) -> Result<()> {
+    let Some(path) = args.config.clone() else {
+        return Ok(());
+    };
+    let mut ini = Ini::new();
+    let map = ini
+        .load(&path)
+        .map_err(|error| anyhow::anyhow!("load config {}: {error}", path.display()))?;
+    for (section, entries) in &map {
+        let allowed: &[&str] = match section.as_str() {
+            "server" => &["bind", "port", "public_url"],
+            "security" => &[
+                "token",
+                "token_file",
+                "secure_cookie",
+                "max_clients",
+                "allowed_origins",
+            ],
+            "terminal" => &["writable", "command"],
+            other => anyhow::bail!("unknown config section [{other}]"),
+        };
+        for key in entries.keys() {
+            anyhow::ensure!(
+                allowed.contains(&key.as_str()),
+                "unknown key [{section}] {key}"
+            );
+        }
+    }
+    let base = path.parent().unwrap_or_else(|| Path::new("."));
+    let get = |section: &str, key: &str| {
+        ini.get(section, key)
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+    };
+    if matches.value_source("bind") != Some(ValueSource::CommandLine) {
+        if let Some(value) = get("server", "bind") {
+            args.bind = value;
+        }
+    }
+    if matches.value_source("port") != Some(ValueSource::CommandLine) {
+        if let Some(value) = get("server", "port") {
+            args.port = value.parse().context("[server] port must be a number")?;
+        }
+    }
+    if matches.value_source("public_url") != Some(ValueSource::CommandLine) {
+        if let Some(value) = get("server", "public_url") {
+            args.public_url = Some(value);
+        }
+    }
+    if matches.value_source("token") != Some(ValueSource::CommandLine) {
+        if let Some(value) = get("security", "token") {
+            args.token = Some(value);
+        }
+    }
+    if matches.value_source("token_file") != Some(ValueSource::CommandLine) {
+        if let Some(value) = get("security", "token_file") {
+            let file = PathBuf::from(value);
+            args.token_file = Some(if file.is_relative() {
+                base.join(file)
+            } else {
+                file
+            });
+        }
+    }
+    if matches.value_source("max_clients") != Some(ValueSource::CommandLine) {
+        if let Some(value) = get("security", "max_clients") {
+            args.max_clients = value
+                .parse()
+                .context("[security] max_clients must be a number")?;
+        }
+    }
+    if args.allowed_origins.is_empty() {
+        if let Some(value) = get("security", "allowed_origins") {
+            args.allowed_origins = value
+                .split(',')
+                .map(str::trim)
+                .filter(|item| !item.is_empty())
+                .map(ToString::to_string)
+                .collect();
+        }
+    }
+    if let Some(value) = get("security", "secure_cookie") {
+        args.secure_cookie |= parse_ini_bool(&value, "[security] secure_cookie")?;
+    }
+    if let Some(value) = get("terminal", "writable") {
+        args.writable |= parse_ini_bool(&value, "[terminal] writable")?;
+    }
+    if args.command.is_empty() {
+        if let Some(value) = get("terminal", "command") {
+            args.command = split_command(&value)?;
+        }
+    }
+    tracing::info!("loaded config: {}", path.display());
+    Ok(())
 }
 
 fn normalize_public_url(value: &str) -> Result<String> {
@@ -146,7 +289,9 @@ fn main() -> Result<()> {
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
         )
         .init();
-    let args = Args::parse();
+    let matches = Args::command().get_matches();
+    let mut args = Args::from_arg_matches(&matches)?;
+    apply_config(&mut args, &matches)?;
 
     #[cfg(windows)]
     {
@@ -272,5 +417,21 @@ mod tests {
         assert!(normalize_public_url("https://tty.example.cn/prefix").is_err());
         assert!(normalize_public_url("https://tty.example.cn/#auth=x").is_err());
         assert!(normalize_public_url("ftp://tty.example.cn").is_err());
+    }
+
+    #[test]
+    fn command_splitting_respects_quotes() {
+        assert_eq!(
+            split_command(r#"cmd.exe /k "C:\Program Files\tool.exe" --flag"#).unwrap(),
+            vec!["cmd.exe", "/k", r#"C:\Program Files\tool.exe"#, "--flag"]
+        );
+        assert!(split_command(r#""unclosed"#).is_err());
+    }
+
+    #[test]
+    fn ini_boolean_parsing_is_strict() {
+        assert!(parse_ini_bool("true", "test").unwrap());
+        assert!(!parse_ini_bool("OFF", "test").unwrap());
+        assert!(parse_ini_bool("maybe", "test").is_err());
     }
 }
