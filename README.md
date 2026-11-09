@@ -7,6 +7,7 @@ ttying is a small, security-focused web terminal server written in Rust. It runs
 ```text
 Windows x86_64  ->  ttying-windows-x86_64.exe
 Linux x86_64    ->  ttying-linux-x86_64
+macOS arm64     ->  ttying-macos-arm64.tar.gz
 Android arm64   ->  ttying-android-arm64.apk
 ```
 
@@ -90,6 +91,15 @@ Open the printed URL. The default port is `7755`.
 ```bash
 ./ttying-linux-x86_64 --token-file ./token.txt -W -- bash
 ```
+
+### macOS (Apple silicon)
+
+```bash
+tar -xzf ttying-macos-arm64.tar.gz
+./ttying --token-file ./token.txt -W -- zsh
+```
+
+The archive contains the `ttying` binary, `ttying.ini.example`, `LICENSE`, and `README.md`. The binary is ad-hoc signed, not notarized: if Gatekeeper blocks the first launch, clear the quarantine attribute with `xattr -d com.apple.quarantine ./ttying`. The server listens on loopback only, so the macOS application firewall may ask for permission on the first start; inbound connections from other hosts are not required.
 
 ### Android
 
@@ -185,6 +195,8 @@ Cloudflare sees only the HTTPS request, not the fragment. Do not use `?token=` o
 - Android SDK, NDK, build-tools, and `cargo-ndk`
 - Zig and `cargo-zigbuild` for the static Linux build
 - MinGW-w64 for the Windows GNU build
+
+The macOS arm64 target (`aarch64-apple-darwin`) is built only by GitHub Actions on a macOS runner, so no local Apple toolchain is required.
 
 Copy `scripts/build-config.example.psd1` to `scripts/build.config.psd1` and fill in the local toolchain paths. The local file is ignored by Git. Environment variables can be used instead:
 
@@ -293,7 +305,7 @@ The fragment is cleared with `history.replaceState`. The cookie is `SameSite=Str
 
 ```text
 crates/ttying-core   PTY, sessions, HTTP/WebSocket server, auth
-crates/ttying-cli    Windows/Linux CLI, token handling, Windows service
+crates/ttying-cli    Windows/Linux/macOS CLI, token handling, Windows service
 crates/ttying-jni    Android JNI bridge
 web/                 xterm.js frontend
 android/             Android Activity, foreground service, resources
@@ -309,15 +321,17 @@ packaging/           systemd unit
 - The shell is not sandboxed beyond the privileges of the ttying process.
 - Deliberately daemonized descendants that create a new process session can escape process-group cleanup; use OS-level containment if required.
 - Android lifecycle testing on physical devices is still recommended for each release.
+- The macOS build is ad-hoc signed and not notarized, so Gatekeeper may require clearing the quarantine attribute on first launch. It targets Apple silicon only; Intel Macs are not covered.
 - The repository does not claim complete CVE coverage for third-party dependencies.
 
 ## GitHub Actions and releases
 
-- `.github/workflows/ci.yml` runs Rust tests, Clippy, frontend tests, protocol regressions, and Android JNI compilation on pushes and pull requests.
+- `.github/workflows/ci.yml` runs Rust tests, Clippy, frontend tests, protocol regressions, Android JNI compilation, and a macOS arm64 build check on pushes and pull requests.
 - `.github/workflows/release.yml` runs on tags matching `v*`.
 - The release workflow builds:
   - `ttying-windows-x86_64.exe`
   - `ttying-linux-x86_64`
+  - `ttying-macos-arm64.tar.gz`
   - `ttying-android-arm64.apk`
   - `SHA256SUMS.txt`
 - Create a release with:

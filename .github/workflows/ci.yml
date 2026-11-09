@@ -91,6 +91,48 @@ jobs:
       - name: Test frontend
         run: node --test web/tests/reconnect.test.cjs
 
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+      - name: Build web assets
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          cp src/index.html ../crates/ttying-core/assets/index.html
+      - name: Test and lint
+        run: |
+          cargo test --workspace --locked
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Build macOS arm64 release
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+        run: |
+          cargo build --locked --release --target aarch64-apple-darwin -p ttying-cli
+          mkdir -p dist
+          cp target/aarch64-apple-darwin/release/ttying dist/ttying-macos-arm64
+          chmod +x dist/ttying-macos-arm64
+      - name: Protocol and smoke tests
+        env:
+          TTYING_TEST_EXE: ${{ github.workspace }}/dist/ttying-macos-arm64
+          TTYING_TEST_COMMAND: '["/bin/sh","-c","exit 0"]'
+          TTYING_TEST_SHELL: '["/bin/sh"]'
+        run: |
+          python3 scripts/security-regression.py
+          TTYING_TEST_COMMAND='["/bin/sh"]' python3 scripts/smoke-test.py
+      - name: Test frontend
+        run: node --test web/tests/reconnect.test.cjs
+
   android-jni:
     runs-on: ubuntu-latest
     steps:

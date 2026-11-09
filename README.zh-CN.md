@@ -7,6 +7,7 @@ ttying 是一个使用 Rust 编写的小型 Web 终端服务器。它在主机�
 ```text
 Windows x86_64  ->  ttying-windows-x86_64.exe
 Linux x86_64    ->  ttying-linux-x86_64
+macOS arm64     ->  ttying-macos-arm64.tar.gz
 Android arm64   ->  ttying-android-arm64.apk
 ```
 
@@ -89,6 +90,15 @@ HTTPS 反向代理终止 TLS 时，必须使用：
 ```bash
 ./ttying-linux-x86_64 --token-file ./token.txt -W -- bash
 ```
+
+### macOS（Apple 芯片）
+
+```bash
+tar -xzf ttying-macos-arm64.tar.gz
+./ttying --token-file ./token.txt -W -- zsh
+```
+
+压缩包内包含 `ttying` 可执行文件、`ttying.ini.example`、`LICENSE` 和 `README.md`。该二进制仅做 ad-hoc 签名，未做公证；若首次启动被 Gatekeeper 拦截，可执行 `xattr -d com.apple.quarantine ./ttying` 清除隔离属性。服务只监听回环地址，因此 macOS 应用防火墙可能只在首次启动时询问权限，无需允许来自其他主机的外部连接。
 
 ### Android
 
@@ -250,7 +260,7 @@ Server -> Client
 
 ```text
 crates/ttying-core   PTY、会话、HTTP/WebSocket 服务、认证
-crates/ttying-cli    Windows/Linux CLI、token、Windows 服务
+crates/ttying-cli    Windows/Linux/macOS CLI、token、Windows 服务
 crates/ttying-jni    Android JNI 桥接
 web/                 xterm.js 前端
 android/             Android Activity、前台服务、资源
@@ -266,15 +276,17 @@ packaging/           systemd 单元
 - shell 不受 ttying 沙箱保护，只具有 ttying 进程的权限。
 - 主动 daemonize 并创建新 session 的后代进程可能逃逸进程组清理，需要操作系统级 containment。
 - 每个 Android release 仍建议做真机生命周期测试。
+- macOS 构建只做 ad-hoc 签名、未做公证，首次启动可能需要清除隔离属性；目前只覆盖 Apple 芯片，不支持 Intel Mac。
 - 不对第三方依赖的完整 CVE 覆盖作承诺。
 
 ## GitHub Actions 与发布
 
-- `.github/workflows/ci.yml` 在 push 和 pull request 时运行 Rust 测试、Clippy、前端测试、协议回归和 Android JNI 编译。
+- `.github/workflows/ci.yml` 在 push 和 pull request 时运行 Rust 测试、Clippy、前端测试、协议回归、Android JNI 编译和 macOS arm64 构建验证。
 - `.github/workflows/release.yml` 在匹配 `v*` 的 tag 上运行。
 - 发布构建产物：
   - `ttying-windows-x86_64.exe`
   - `ttying-linux-x86_64`
+  - `ttying-macos-arm64.tar.gz`
   - `ttying-android-arm64.apk`
   - `SHA256SUMS.txt`
 - 创建发布：

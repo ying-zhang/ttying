@@ -85,6 +85,51 @@ jobs:
           path: dist/ttying-linux-x86_64
           if-no-files-found: error
 
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+      - name: Build web assets
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          cp src/index.html ../crates/ttying-core/assets/index.html
+      - name: Build macOS arm64 binary
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+        run: |
+          cargo build --locked --release --target aarch64-apple-darwin -p ttying-cli
+          mkdir -p dist/package
+          cp target/aarch64-apple-darwin/release/ttying dist/package/ttying
+          chmod +x dist/package/ttying
+      - name: Verify and package
+        run: |
+          file dist/package/ttying
+          # Ad-hoc signature: required on Apple silicon and invalidated by any
+          # post-link modification. Re-sign so Gatekeeper accepts the binary.
+          codesign --force --sign - dist/package/ttying
+          codesign --verify --strict --verbose=2 dist/package/ttying
+          dist/package/ttying --version
+          cp ttying.ini.example LICENSE README.md dist/package/
+          tar -czf dist/ttying-macos-arm64.tar.gz -C dist/package \
+            ttying ttying.ini.example LICENSE README.md
+          tar -tzf dist/ttying-macos-arm64.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ttying-macos-arm64
+          path: dist/ttying-macos-arm64.tar.gz
+          if-no-files-found: error
+
   android:
     runs-on: ubuntu-latest
     steps:
@@ -135,7 +180,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: [windows, linux, android]
+    needs: [windows, linux, macos, android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -156,5 +201,6 @@ jobs:
           files: |
             dist/ttying-windows-x86_64.exe
             dist/ttying-linux-x86_64
+            dist/ttying-macos-arm64.tar.gz
             dist/ttying-android-arm64.apk
             dist/SHA256SUMS.txt

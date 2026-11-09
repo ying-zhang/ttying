@@ -25,7 +25,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
     if (!card) return;
     card.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
     tab.classList.add("active");
-    ["win", "linux", "android"].forEach((name) => {
+    ["win", "linux", "macos", "android"].forEach((name) => {
       const panel = card.querySelector("#code-" + name);
       if (panel) panel.hidden = name !== tab.dataset.tab;
     });

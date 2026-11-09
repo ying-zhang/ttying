@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ttying - secure web terminal</title>
-  <meta name="description" content="A secure Rust web terminal with persistent PTY sessions, xterm.js, token authentication, Windows/Linux/Android builds, INI configuration, and Cloudflare Tunnel support.">
+  <meta name="description" content="A secure Rust web terminal with persistent PTY sessions, xterm.js, token authentication, Windows/Linux/macOS/Android builds, INI configuration, and Cloudflare Tunnel support.">
   <meta property="og:title" content="ttying - secure web terminal">
   <meta property="og:description" content="A secure Rust web terminal with persistent PTY sessions, browser xterm.js, and cross-platform builds.">
   <meta property="og:type" content="website">
@@ -54,6 +54,7 @@
         <div class="platforms">
           <span><i class="dot"></i>Windows x86_64</span>
           <span><i class="dot"></i>Linux x86_64</span>
+          <span><i class="dot"></i>macOS arm64</span>
           <span><i class="dot"></i>Android arm64</span>
         </div>
       </div>
@@ -83,7 +84,7 @@
         <div class="card"><div class="glyph">↻</div><h3>Reconnect and replay</h3><p>Sequence-numbered output history, visible truncation notices, and reconnect backoff.</p></div>
         <div class="card"><div class="glyph">⌁</div><h3>Token-first auth</h3><p>Fragment bootstrap, HttpOnly SameSite cookie, Origin/Host checks, and login rate limiting.</p></div>
         <div class="card"><div class="glyph">▣</div><h3>Browser terminal</h3><p>xterm.js with search, safe links, copy/paste, themes, font sizing, and mobile special keys.</p></div>
-        <div class="card"><div class="glyph">◈</div><h3>Three platforms</h3><p>Windows and Linux binaries plus an Android arm64 foreground-service APK. Terminal work stays in the browser.</p></div>
+        <div class="card"><div class="glyph">◈</div><h3>Four platforms</h3><p>Windows, Linux, and macOS arm64 binaries plus an Android arm64 foreground-service APK. Terminal work stays in the browser.</p></div>
         <div class="card"><div class="glyph">☁</div><h3>Proxy ready</h3><p>Cloudflare Tunnel and HTTPS reverse proxies supported with Secure cookies and public URL bootstrap.</p></div>
       </div>
     </section>
@@ -120,6 +121,7 @@
           <div class="tabs">
             <button class="tab active" data-tab="win" type="button">Windows</button>
             <button class="tab" data-tab="linux" type="button">Linux</button>
+            <button class="tab" data-tab="macos" type="button">macOS</button>
             <button class="tab" data-tab="android" type="button">Android</button>
           </div>
           <button class="copy" type="button" data-copy="code">Copy</button>
@@ -136,6 +138,12 @@
 <span class="comment"># HTTPS proxy example:</span>
 <span class="cmd-text">./ttying-linux-x86_64 --token-file ./token.txt -W \</span>
 <span class="cmd-text">  --secure-cookie --public-url https://tty.example.cn -- bash</span></code></pre>
+          <pre id="code-macos" hidden><code><span class="comment"># download ttying-macos-arm64.tar.gz, then extract it</span>
+<span class="cmd-text">tar -xzf ttying-macos-arm64.tar.gz</span>
+<span class="cmd-text">./ttying --config ./ttying.ini</span>
+
+<span class="comment"># equivalent explicit command (Apple silicon):</span>
+<span class="cmd-text">./ttying --token-file ./token.txt -W -- zsh</span></code></pre>
           <pre id="code-android" hidden><code><span class="comment"># install the release APK</span>
 <span class="cmd-text">adb install -r ttying-android-arm64.apk</span>
 
@@ -233,6 +241,7 @@
         <div class="platforms">
           <span><i class="dot"></i>Windows x86_64</span>
           <span><i class="dot"></i>Linux x86_64</span>
+          <span><i class="dot"></i>macOS arm64</span>
           <span><i class="dot"></i>Android arm64</span>
         </div>
       </div>
@@ -262,7 +271,7 @@
         <div class="card"><div class="glyph">↻</div><h3>重连与回放</h3><p>带序号的输出历史、明确的截断提示，以及带退避的重连机制。</p></div>
         <div class="card"><div class="glyph">⌁</div><h3>Token 优先认证</h3><p>URL fragment 引导、HttpOnly SameSite cookie、Host/Origin 校验和登录限流。</p></div>
         <div class="card"><div class="glyph">▣</div><h3>浏览器终端</h3><p>xterm.js 搜索、安全链接、复制粘贴、主题、字体大小和移动端特殊键。</p></div>
-        <div class="card"><div class="glyph">◈</div><h3>三个平台</h3><p>Windows、Linux 二进制和 Android arm64 前台服务 APK。终端交互始终在浏览器中完成。</p></div>
+        <div class="card"><div class="glyph">◈</div><h3>四个平台</h3><p>Windows、Linux、macOS arm64 二进制和 Android arm64 前台服务 APK。终端交互始终在浏览器中完成。</p></div>
         <div class="card"><div class="glyph">☁</div><h3>反向代理友好</h3><p>支持 Cloudflare Tunnel 和 HTTPS 反向代理，包含 Secure cookie 和公网 URL 引导。</p></div>
       </div>
     </section>
@@ -299,6 +308,7 @@
           <div class="tabs">
             <button class="tab active" data-tab="win" type="button">Windows</button>
             <button class="tab" data-tab="linux" type="button">Linux</button>
+            <button class="tab" data-tab="macos" type="button">macOS</button>
             <button class="tab" data-tab="android" type="button">Android</button>
           </div>
           <button class="copy" type="button" data-copy="code">复制</button>
@@ -315,6 +325,12 @@
 <span class="comment"># HTTPS 反向代理示例：</span>
 <span class="cmd-text">./ttying-linux-x86_64 --token-file ./token.txt -W \</span>
 <span class="cmd-text">  --secure-cookie --public-url https://tty.example.cn -- bash</span></code></pre>
+          <pre id="code-macos" hidden><code><span class="comment"># 下载 ttying-macos-arm64.tar.gz 后解压</span>
+<span class="cmd-text">tar -xzf ttying-macos-arm64.tar.gz</span>
+<span class="cmd-text">./ttying --config ./ttying.ini</span>
+
+<span class="comment"># 等价的显式命令（Apple 芯片）：</span>
+<span class="cmd-text">./ttying --token-file ./token.txt -W -- zsh</span></code></pre>
           <pre id="code-android" hidden><code><span class="comment"># 安装 release APK</span>
 <span class="cmd-text">adb install -r ttying-android-arm64.apk</span>
 
