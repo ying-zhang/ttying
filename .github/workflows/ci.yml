@@ -122,6 +122,14 @@ jobs:
           mkdir -p dist
           cp target/aarch64-apple-darwin/release/ttying dist/ttying-macos-arm64
           chmod +x dist/ttying-macos-arm64
+      - name: Check release packaging
+        run: |
+          file dist/ttying-macos-arm64
+          codesign --force --sign - dist/ttying-macos-arm64
+          codesign --verify --strict --verbose=2 dist/ttying-macos-arm64
+          dist/ttying-macos-arm64 --version
+          tar -czf dist/ttying-macos-arm64.tar.gz -C dist ttying-macos-arm64
+          tar -tzf dist/ttying-macos-arm64.tar.gz
       - name: Protocol and smoke tests
         env:
           TTYING_TEST_EXE: ${{ github.workspace }}/dist/ttying-macos-arm64
