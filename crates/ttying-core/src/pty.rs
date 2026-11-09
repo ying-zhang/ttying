@@ -77,12 +77,42 @@ mod platform {
 #[cfg(unix)]
 mod platform {
     use anyhow::{Context, Result};
-    use std::ffi::CStr;
+    use std::ffi::{CStr, CString};
     use std::fs::File;
     use std::io::{Read, Write};
     use std::os::fd::{AsRawFd, FromRawFd};
     use std::os::unix::process::CommandExt;
     use std::process::{Child, Command, Stdio};
+
+    // Darwin declares TIOCSCTTY as u32 while the ioctl request parameter is
+    // c_ulong, so the cast is required there and redundant on Linux.
+    #[allow(clippy::unnecessary_cast)]
+    const TIOCSCTTY_REQUEST: libc::c_ulong = libc::TIOCSCTTY as libc::c_ulong;
+
+    /// Slave device path for a PTY master. The caller passes it to `open`
+    /// immediately, so the name is copied out of any static buffer here.
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    fn slave_name(fd: libc::c_int) -> Result<CString> {
+        let mut name = [0 as libc::c_char; 1024];
+        let rc = unsafe { libc::ptsname_r(fd, name.as_mut_ptr(), name.len()) };
+        if rc != 0 {
+            anyhow::bail!("ptsname_r: {rc}");
+        }
+        Ok(unsafe { CStr::from_ptr(name.as_ptr()) }.to_owned())
+    }
+
+    /// `ptsname` returns a pointer into a static buffer and is not
+    /// documented as thread-safe, so copy under a lock.
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    fn slave_name(fd: libc::c_int) -> Result<CString> {
+        static NAME_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _guard = NAME_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+        let ptr = unsafe { libc::ptsname(fd) };
+        if ptr.is_null() {
+            return Err(std::io::Error::last_os_error()).context("ptsname");
+        }
+        Ok(unsafe { CStr::from_ptr(ptr) }.to_owned())
+    }
 
     pub struct PtySession {
         master: File,
@@ -107,12 +137,7 @@ mod platform {
             if unsafe { libc::grantpt(fd) } != 0 || unsafe { libc::unlockpt(fd) } != 0 {
                 return Err(std::io::Error::last_os_error()).context("prepare PTY");
             }
-            let mut name = [0 as libc::c_char; 1024];
-            let rc = unsafe { libc::ptsname_r(fd, name.as_mut_ptr(), name.len()) };
-            if rc != 0 {
-                anyhow::bail!("ptsname_r: {rc}");
-            }
-            let name = unsafe { CStr::from_ptr(name.as_ptr()) };
+            let name = slave_name(fd)?;
             let slave_fd = unsafe {
                 libc::open(
                     name.as_ptr(),
@@ -144,7 +169,7 @@ mod platform {
             // Environment and allocation happen before spawning. Only syscalls here.
             unsafe {
                 cmd.pre_exec(|| {
-                    if libc::setsid() < 0 || libc::ioctl(0, libc::TIOCSCTTY, 0) < 0 {
+                    if libc::setsid() < 0 || libc::ioctl(0, TIOCSCTTY_REQUEST, 0) < 0 {
                         return Err(std::io::Error::last_os_error());
                     }
                     Ok(())
