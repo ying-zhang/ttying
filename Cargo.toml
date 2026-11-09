@@ -1,0 +1,32 @@
+[workspace]
+resolver = "2"
+members = ["crates/ttying-core", "crates/ttying-cli", "crates/ttying-jni"]
+
+[workspace.package]
+version = "1.8.3"
+edition = "2021"
+license = "BSD-3-Clause"
+
+[workspace.dependencies]
+anyhow = "1"
+axum = { version = "0.8", features = ["ws"] }
+base64 = "0.23"
+jni = "0.22"
+portable-pty = "0.9"
+rand = "0.10"
+rust-embed = "8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+subtle = "2"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+url = "2"
+
+[profile.release]
+lto = true
+opt-level = "s"
+strip = true
+codegen-units = 1
+
+

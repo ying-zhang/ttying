@@ -1,0 +1,31 @@
+# ttying INI configuration example
+# Start with: ttying --config ttying.ini
+# Command-line arguments override values from this file.
+
+[server]
+# Bind address. Keep 127.0.0.1 unless you intentionally expose the port.
+bind = 127.0.0.1
+# Preferred port. Android additionally falls back to an ephemeral port if 7755 is busy.
+port = 7755
+# Public HTTPS URL used by --print-url and for Secure-cookie auto-detection.
+# public_url = https://tty.example.cn
+
+[security]
+# Prefer token_file. A relative path is resolved relative to this INI file.
+token_file = token.txt
+# Set true when an HTTPS reverse proxy terminates TLS.
+# Override with --no-secure-cookie even when this is true.
+secure_cookie = false
+max_clients = 10
+# Comma-separated exact origins; normally unnecessary when Host is preserved.
+# allowed_origins = https://tty.example.cn, https://alt.example.cn
+# Fixed token is supported but less safe than token_file.
+# token = replace-with-a-long-random-token
+
+[terminal]
+# Terminal input is read-only unless this is true.
+# Override with --read-only even when this is true.
+writable = false
+# Optional shell/command. Quote arguments that contain spaces.
+# command = cmd.exe /k
+# command = /bin/bash -l
