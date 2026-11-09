@@ -84,10 +84,20 @@ mod platform {
     use std::os::unix::process::CommandExt;
     use std::process::{Child, Command, Stdio};
 
-    // Darwin declares TIOCSCTTY as u32 while the ioctl request parameter is
-    // c_ulong, so the cast is required there and redundant on Linux.
-    #[allow(clippy::unnecessary_cast)]
-    const TIOCSCTTY_REQUEST: libc::c_ulong = libc::TIOCSCTTY as libc::c_ulong;
+    // Darwin and the BSDs type the ioctl request differently from Linux, so
+    // each family gets its own call instead of a single shared constant.
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    fn set_controlling_tty() -> libc::c_int {
+        unsafe { libc::ioctl(0, libc::TIOCSCTTY, 0) }
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    fn set_controlling_tty() -> libc::c_int {
+        // Darwin declares TIOCSCTTY as u32 while ioctl takes a c_ulong request.
+        #[allow(clippy::unnecessary_cast)]
+        let request = libc::TIOCSCTTY as libc::c_ulong;
+        unsafe { libc::ioctl(0, request, 0) }
+    }
 
     /// Slave device path for a PTY master. The caller passes it to `open`
     /// immediately, so the name is copied out of any static buffer here.
@@ -169,7 +179,7 @@ mod platform {
             // Environment and allocation happen before spawning. Only syscalls here.
             unsafe {
                 cmd.pre_exec(|| {
-                    if libc::setsid() < 0 || libc::ioctl(0, TIOCSCTTY_REQUEST, 0) < 0 {
+                    if libc::setsid() < 0 || set_controlling_tty() < 0 {
                         return Err(std::io::Error::last_os_error());
                     }
                     Ok(())
