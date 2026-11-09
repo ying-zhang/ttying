@@ -1553,7 +1553,7 @@ dependencies = [
 
 [[package]]
 name = "ttying-cli"
-version = "1.8.0"
+version = "1.8.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1571,7 +1571,7 @@ dependencies = [
 
 [[package]]
 name = "ttying-core"
-version = "1.8.0"
+version = "1.8.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -1590,7 +1590,7 @@ dependencies = [
 
 [[package]]
 name = "ttying-jni"
-version = "1.8.0"
+version = "1.8.1"
 dependencies = [
  "anyhow",
  "jni",
