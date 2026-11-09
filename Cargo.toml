@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/ttying-core", "crates/ttying-cli", "crates/ttying-jni"]
 
 [workspace.package]
-version = "1.8.1"
+version = "1.8.2"
 edition = "2021"
 license = "BSD-3-Clause"
 
