@@ -299,7 +299,15 @@ public class MainActivity extends Activity {
             JSONObject obj = new JSONObject(binder.getStatus());
             String url = obj.optString("url", "");
             if (!url.isEmpty()) {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                // Resolve the user's browser without disclosing the credential
+                // to arbitrary apps that only register an HTTP URL handler.
+                Intent selector = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_BROWSER);
+                android.content.pm.ResolveInfo browser = getPackageManager().resolveActivity(selector, 0);
+                if (browser == null || browser.activityInfo == null || "android".equals(browser.activityInfo.packageName)) {
+                    android.widget.Toast.makeText(this, R.string.browser_required, android.widget.Toast.LENGTH_LONG).show();
+                    return;
+                }
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage(browser.activityInfo.packageName));
             }
         } catch (Exception ignored) { }
     }

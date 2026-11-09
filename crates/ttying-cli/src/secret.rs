@@ -13,10 +13,14 @@ pub fn protect(path: &Path, account: Option<&str>) -> Result<()> {
     }
     #[cfg(windows)]
     {
-        let current = std::process::Command::new("whoami.exe").output()?;
+        let system = std::path::PathBuf::from(
+            std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into()),
+        )
+        .join("System32");
+        let current = std::process::Command::new(system.join("whoami.exe")).output()?;
         anyhow::ensure!(current.status.success(), "whoami failed");
         let current = String::from_utf8(current.stdout)?;
-        let mut cmd = std::process::Command::new("icacls.exe");
+        let mut cmd = std::process::Command::new(system.join("icacls.exe"));
         cmd.arg(path)
             .args([
                 "/inheritance:r",

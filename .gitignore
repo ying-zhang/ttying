@@ -19,3 +19,8 @@ headless*
 
 __pycache__/
 *.pyc
+*.keystore
+*.jks
+*.p12
+.env
+.env.*

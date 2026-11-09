@@ -13,7 +13,7 @@ Android arm64   ->  ttying-android-arm64.apk
 
 The Android app only starts, stops, and reports the status of the local server. Terminal interaction happens in the system browser. The application id is `cn.z.ttying`.
 
-Current release: **v1.8.2** · [GitHub repository](https://github.com/ying-zhang/ttying) · [Releases](https://github.com/ying-zhang/ttying/releases) · [Website](https://ying-zhang.github.io/ttying/)
+Current release: **v1.8.3** · [GitHub repository](https://github.com/ying-zhang/ttying) · [Releases](https://github.com/ying-zhang/ttying/releases) · [Website](https://ying-zhang.github.io/ttying/)
 
 ## Development disclosure
 
@@ -53,6 +53,8 @@ ttying is an independent Rust implementation. The following projects and their s
 No source code from those projects is copied into this repository. Their licenses and attribution requirements remain their own.
 
 ## Security model
+
+See [deployment details](DEPLOYMENT-SECURITY.zh-CN.md) for systemd setup and precise cookie, Origin and Android browser boundaries.
 
 - Default bind: `127.0.0.1:7755`.
 - Android prefers port `7755`; if it is occupied, the server falls back to an ephemeral port.
@@ -336,8 +338,8 @@ packaging/           systemd unit
   - `SHA256SUMS.txt`
 - Create a release with:
   ```powershell
-  git tag v1.8.2
-  git push origin v1.8.2
+  git tag v1.8.3
+  git push origin v1.8.3
   ```
 - Required repository secrets for Android signing:
   - `ANDROID_KEYSTORE_BASE64`

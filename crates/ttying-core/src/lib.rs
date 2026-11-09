@@ -19,5 +19,11 @@ pub fn default_shell() -> Vec<String> {
 
 #[cfg(all(unix, not(target_os = "android")))]
 pub fn default_shell() -> Vec<String> {
-    vec![std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string())]
+    vec![std::env::var("SHELL")
+        .ok()
+        .filter(|shell| {
+            let path = std::path::Path::new(shell);
+            path.is_absolute() && path.is_file()
+        })
+        .unwrap_or_else(|| "/bin/sh".to_string())]
 }

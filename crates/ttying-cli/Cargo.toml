@@ -23,5 +23,8 @@ tracing-subscriber.workspace = true
 [target.'cfg(windows)'.dependencies]
 windows-service = "0.8"
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [build-dependencies]
 winresource = "0.1.34"

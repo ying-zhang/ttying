@@ -92,17 +92,19 @@ const term = new Terminal({
   scrollback: 10000,
   allowProposedApi: true,
   macOptionIsMeta: true,
+  linkHandler: { activate: (_event, uri) => openSafeLink(uri) },
 });
 const fit = new FitAddon();
 const search = new SearchAddon();
-const webLinks = new WebLinksAddon((_event, uri) => {
+function openSafeLink(uri) {
   try {
     const url = new URL(uri);
     if (["http:", "https:", "mailto:"].includes(url.protocol)) {
       window.open(url.href, "_blank", "noopener,noreferrer");
     }
   } catch { /* ignore malformed links */ }
-});
+}
+const webLinks = new WebLinksAddon((_event, uri) => openSafeLink(uri));
 term.loadAddon(fit);
 term.loadAddon(search);
 term.loadAddon(webLinks);
@@ -216,6 +218,7 @@ async function login() {
 }
 
 async function authenticateAndConnect() {
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   const generation = ++connectionGeneration;
   const result = await login();
   if (generation !== connectionGeneration) return;
@@ -248,7 +251,7 @@ function sendInput(data) {
   sendRaw(CMD_INPUT, bytes);
 }
 function sendResize() {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (!attached || !ws || ws.readyState !== WebSocket.OPEN) return;
   sendJson(CMD_RESIZE, { cols: term.cols, rows: term.rows });
 }
 function closeSocket() {

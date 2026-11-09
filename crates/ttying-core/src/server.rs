@@ -151,8 +151,7 @@ async fn session_valid(state: &AppState, headers: &HeaderMap) -> bool {
         return false;
     };
     let now = Instant::now();
-    let mut sessions = state.auth_sessions.write().await;
-    sessions.retain(|_, exp| *exp > now);
+    let sessions = state.auth_sessions.read().await;
     sessions.get(&sid).is_some_and(|exp| *exp > now)
 }
 
@@ -190,26 +189,25 @@ fn origin_allowed(state: &AppState, headers: &HeaderMap) -> bool {
     let Some(origin) = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok()) else {
         return true;
     };
-    state.allowed_origins.iter().any(|o| o == origin)
-        || host_matches_origin(headers, origin, state.secure_cookie)
+    if state.allowed_origins.is_empty() {
+        host_matches_origin(headers, origin, state.secure_cookie)
+    } else {
+        state.allowed_origins.iter().any(|o| o == origin)
+    }
 }
 
 async fn login_allowed(state: &AppState, peer: &str) -> bool {
     let now = Instant::now();
     let mut map = state.login_failures.lock().await;
     map.retain(|_, (_, first)| now.duration_since(*first) < LOGIN_WINDOW);
-    map.get(peer)
-        .is_none_or(|(count, _)| *count < LOGIN_MAX_FAILURES)
-}
-
-async fn record_login_failure(state: &AppState, peer: &str) {
-    let now = Instant::now();
-    let mut map = state.login_failures.lock().await;
+    // Fail closed for new peers at capacity; do not discard failure tracking.
     if map.len() >= 4096 && !map.contains_key(peer) {
-        return;
+        return false;
     }
     let entry = map.entry(peer.to_string()).or_insert((0, now));
+    let allowed = entry.0 < LOGIN_MAX_FAILURES;
     entry.0 = entry.0.saturating_add(1);
+    allowed
 }
 pub fn start_background(config: ServerConfig) -> Result<ServerHandle> {
     anyhow::ensure!(
@@ -396,24 +394,35 @@ async fn api_session(
         return StatusCode::FORBIDDEN.into_response();
     }
     let authorized_token = bearer(&headers).is_some_and(|t| constant_eq(t, state.token.as_str()));
-    let existing = session_valid(&state, &headers).await;
+    // Validation and renewal share the logout lock: a revoked cookie cannot be
+    // resurrected by a request that validated it before logout.
+    let mut sessions = state.auth_sessions.write().await;
+    sessions.retain(|_, exp| *exp > Instant::now());
+    let cookie_sid = cookie_value(&headers, "ttyd_session");
+    let existing = cookie_sid
+        .as_ref()
+        .is_some_and(|sid| sessions.contains_key(sid));
     if !authorized_token && !existing {
+        drop(sessions);
         if !login_allowed(&state, &peer.ip().to_string()).await {
             return StatusCode::TOO_MANY_REQUESTS.into_response();
         }
-        record_login_failure(&state, &peer.ip().to_string()).await;
         return StatusCode::UNAUTHORIZED.into_response();
     }
     let sid = if existing {
-        cookie_value(&headers, "ttyd_session").unwrap()
+        cookie_sid.unwrap()
     } else {
         random_token()
     };
     let expires = Instant::now() + state.session_ttl;
-    let mut sessions = state.auth_sessions.write().await;
-    sessions.retain(|_, exp| *exp > Instant::now());
     if sessions.len() >= 4096 && !sessions.contains_key(&sid) {
-        return StatusCode::SERVICE_UNAVAILABLE.into_response();
+        if let Some(oldest) = sessions
+            .iter()
+            .min_by_key(|(_, exp)| *exp)
+            .map(|(id, _)| id.clone())
+        {
+            sessions.remove(&oldest);
+        }
     }
     sessions.insert(sid.clone(), expires);
     drop(sessions);
@@ -499,9 +508,6 @@ async fn ws_handler(
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
 ) -> Response {
-    let Ok(permit) = state.client_sem.clone().try_acquire_owned() else {
-        return StatusCode::SERVICE_UNAVAILABLE.into_response();
-    };
     if !is_authorized(&state, &headers).await {
         return StatusCode::UNAUTHORIZED.into_response();
     }
@@ -513,6 +519,9 @@ async fn ws_handler(
         None
     } else {
         cookie_value(&headers, "ttyd_session")
+    };
+    let Ok(permit) = state.client_sem.clone().try_acquire_owned() else {
+        return StatusCode::SERVICE_UNAVAILABLE.into_response();
     };
     ws.max_message_size(MAX_MESSAGE_BYTES)
         .max_frame_size(MAX_MESSAGE_BYTES)
@@ -541,6 +550,9 @@ async fn handle_attached_message(
         }
         CMD_INPUT => true,
         CMD_RESIZE => {
+            if data.len() > MAX_ATTACH_BYTES {
+                return false;
+            }
             if let Ok(size) = serde_json::from_slice::<ResizeMsg>(&data[1..]) {
                 attachment
                     .session
@@ -728,6 +740,94 @@ async fn handle_socket(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn state() -> Arc<AppState> {
+        Arc::new(AppState {
+            token: Arc::new("test-token-1234567890".into()),
+            secure_cookie: false,
+            stopping: AtomicBool::new(false),
+            auth_sessions: Arc::new(RwLock::new(HashMap::new())),
+            session_manager: Arc::new(SessionManager::new(Arc::new(vec![]), true, 2)),
+            read_only: true,
+            session_ttl: Duration::from_secs(60),
+            allowed_origins: Arc::new(vec!["https://trusted.example".into()]),
+            client_sem: Arc::new(Semaphore::new(1)),
+            login_failures: Arc::new(Mutex::new(HashMap::new())),
+        })
+    }
+
+    #[tokio::test]
+    async fn auth_capacity_and_revoked_cookie() {
+        let state = state();
+        for n in 0..4096 {
+            state
+                .auth_sessions
+                .write()
+                .await
+                .insert(format!("old-{n}"), Instant::now() + Duration::from_secs(30));
+        }
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::AUTHORIZATION,
+            "Bearer test-token-1234567890".parse().unwrap(),
+        );
+        let response = api_session(
+            State(state.clone()),
+            ConnectInfo("127.0.0.1:1".parse().unwrap()),
+            headers,
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(state.auth_sessions.read().await.len(), 4096);
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::COOKIE,
+            response.headers()[header::SET_COOKIE]
+                .to_str()
+                .unwrap()
+                .split(';')
+                .next()
+                .unwrap()
+                .parse()
+                .unwrap(),
+        );
+        api_logout(State(state.clone()), headers.clone()).await;
+        let response = api_session(
+            State(state.clone()),
+            ConnectInfo("127.0.0.1:1".parse().unwrap()),
+            headers,
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn failure_limit_is_atomic_and_fails_closed_at_capacity() {
+        let state = state();
+        for _ in 0..LOGIN_MAX_FAILURES {
+            assert!(login_allowed(&state, "peer").await);
+        }
+        assert!(!login_allowed(&state, "peer").await);
+        for n in 0..4095 {
+            state
+                .login_failures
+                .lock()
+                .await
+                .insert(format!("peer-{n}"), (1, Instant::now()));
+        }
+        assert!(!login_allowed(&state, "new-peer").await);
+    }
+
+    #[test]
+    fn explicit_origins_disable_host_fallback() {
+        let state = state();
+        let mut headers = HeaderMap::new();
+        headers.insert(header::HOST, "evil.example".parse().unwrap());
+        headers.insert(header::ORIGIN, "http://evil.example".parse().unwrap());
+        assert!(!origin_allowed(&state, &headers));
+        headers.insert(header::ORIGIN, "https://trusted.example".parse().unwrap());
+        assert!(origin_allowed(&state, &headers));
+    }
 
     #[test]
     fn origin_checks_scheme_ipv6_and_default_ports() {

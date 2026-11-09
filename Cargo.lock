@@ -1553,11 +1553,12 @@ dependencies = [
 
 [[package]]
 name = "ttying-cli"
-version = "1.8.2"
+version = "1.8.3"
 dependencies = [
  "anyhow",
  "clap",
  "configparser",
+ "libc",
  "serde",
  "serde_json",
  "tokio",
@@ -1571,7 +1572,7 @@ dependencies = [
 
 [[package]]
 name = "ttying-core"
-version = "1.8.2"
+version = "1.8.3"
 dependencies = [
  "anyhow",
  "axum",
@@ -1590,7 +1591,7 @@ dependencies = [
 
 [[package]]
 name = "ttying-jni"
-version = "1.8.2"
+version = "1.8.3"
 dependencies = [
  "anyhow",
  "jni",

@@ -52,7 +52,8 @@ pub fn program_data_dir() -> PathBuf {
 pub fn install(opts: InstallOptions) -> Result<()> {
     let dir = program_data_dir();
     std::fs::create_dir_all(&dir)?;
-    let token_file = opts.token_file.clone().unwrap_or_else(|| dir.join("token"));
+    let token_file =
+        std::path::absolute(opts.token_file.clone().unwrap_or_else(|| dir.join("token")))?;
     if !token_file.exists() || opts.token.is_some() {
         let token = opts.token.clone().unwrap_or_else(random_token);
         super::secret::validate(&token)?;

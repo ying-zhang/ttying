@@ -3,6 +3,7 @@ use anyhow::{Context, Result};
 use clap::parser::ValueSource;
 use clap::{CommandFactory, FromArgMatches, Parser};
 use configparser::ini::Ini;
+use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use ttying_core::{default_shell, random_token, start_background, ServerConfig, DEFAULT_PORT};
 
@@ -69,25 +70,45 @@ struct Args {
 
 fn load_or_create_token(file: &PathBuf, _protect_existing: bool) -> Result<String> {
     if file.exists() {
+        use std::io::Read;
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            options.custom_flags(0x00200000); // FILE_FLAG_OPEN_REPARSE_POINT
+        }
+        let opened = options.open(file)?;
+        let metadata = opened.metadata()?;
         anyhow::ensure!(
-            !std::fs::symlink_metadata(file)?.file_type().is_symlink(),
-            "token file must not be a symlink"
+            metadata.is_file() && !metadata.file_type().is_symlink(),
+            "token must be a regular file, not a symlink"
         );
-        let token = std::fs::read_to_string(file)
+        anyhow::ensure!(metadata.len() <= 4096, "token file too large");
+        let mut token = String::new();
+        opened
+            .take(4097)
+            .read_to_string(&mut token)
             .with_context(|| format!("read token file {}", file.display()))?;
+        anyhow::ensure!(token.len() <= 4096, "token file too large");
         let token = token.trim().to_string();
         secret::validate(&token)?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             anyhow::ensure!(
-                std::fs::metadata(file)?.permissions().mode() & 0o077 == 0,
+                metadata.permissions().mode() & 0o077 == 0,
                 "token file permissions must be 0600 (or stricter)"
             );
         }
         #[cfg(windows)]
         if _protect_existing {
-            secret::write(file, &token, None)?;
+            secret::protect(file, None)?;
         }
         return Ok(token);
     }
@@ -161,6 +182,10 @@ fn split_command(value: &str) -> Result<Vec<String>> {
 }
 
 fn apply_config(args: &mut Args, matches: &clap::ArgMatches) -> Result<()> {
+    // SCM's --config is the private service JSON, not a user INI.
+    if args.service {
+        return Ok(());
+    }
     let Some(path) = args.config.clone() else {
         return Ok(());
     };
@@ -209,12 +234,16 @@ fn apply_config(args: &mut Args, matches: &clap::ArgMatches) -> Result<()> {
             args.public_url = Some(value);
         }
     }
-    if matches.value_source("token") != Some(ValueSource::CommandLine) {
+    if matches.value_source("token") != Some(ValueSource::CommandLine)
+        && matches.value_source("token_file") != Some(ValueSource::CommandLine)
+    {
         if let Some(value) = get("security", "token") {
             args.token = Some(value);
         }
     }
-    if matches.value_source("token_file") != Some(ValueSource::CommandLine) {
+    if matches.value_source("token_file") != Some(ValueSource::CommandLine)
+        && matches.value_source("token") != Some(ValueSource::CommandLine)
+    {
         if let Some(value) = get("security", "token_file") {
             let file = PathBuf::from(value);
             args.token_file = Some(if file.is_relative() {
@@ -316,6 +345,11 @@ fn main() -> Result<()> {
     let matches = Args::command().get_matches();
     let mut args = Args::from_arg_matches(&matches)?;
     apply_config(&mut args, &matches)?;
+    args.public_url = args
+        .public_url
+        .as_deref()
+        .map(normalize_public_url)
+        .transpose()?;
 
     #[cfg(windows)]
     {
@@ -413,7 +447,9 @@ fn main() -> Result<()> {
     tracing::info!("command: {:?}", command);
     tracing::info!("read_only: {}", !args.writable);
     println!("ttying listening on http://{}", handle.addr);
-    println!("open: {url}");
+    if std::io::stdout().is_terminal() {
+        println!("open: {url}");
+    }
     println!("press Ctrl+C to stop");
 
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -431,6 +467,32 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn service_config_bypasses_ini_and_cli_credential_overrides_ini() {
+        let matches = Args::command()
+            .try_get_matches_from(["ttying", "--service", "--config", "missing-service.json"])
+            .unwrap();
+        let mut args = Args::from_arg_matches(&matches).unwrap();
+        apply_config(&mut args, &matches).unwrap();
+        let path = std::env::temp_dir().join(format!("ttying-{}.ini", random_token()));
+        std::fs::write(&path, "[security]\ntoken = ini-token-1234567890\n").unwrap();
+        let matches = Args::command()
+            .try_get_matches_from([
+                "ttying",
+                "--config",
+                path.to_str().unwrap(),
+                "--token-file",
+                "explicit-token",
+            ])
+            .unwrap();
+        let mut args = Args::from_arg_matches(&matches).unwrap();
+        let result = apply_config(&mut args, &matches);
+        std::fs::remove_file(path).unwrap();
+        result.unwrap();
+        assert!(args.token.is_none());
+        assert_eq!(args.token_file.unwrap(), PathBuf::from("explicit-token"));
+    }
 
     #[test]
     fn public_url_is_appended_with_fragment_token() {

@@ -32,7 +32,6 @@ fn state() -> &'static Mutex<RuntimeState> {
 struct Status {
     running: bool,
     port: u16,
-    token: String,
     url: String,
     error: String,
     version: &'static str,
@@ -48,7 +47,6 @@ fn status_locked(guard: &RuntimeState) -> String {
     serde_json::to_string(&Status {
         running,
         port,
-        token: guard.token.clone(),
         url: guard.url.clone(),
         error: guard.error.clone(),
         version: ttying_core::VERSION,
@@ -101,9 +99,6 @@ pub extern "system" fn Java_cn_z_ttying_TtyingNative_start<'local>(
             let mut guard = state().lock().unwrap_or_else(|p| p.into_inner());
             if guard.handle.is_some() {
                 return status_to_java(env, status_locked(&guard));
-            }
-            if let Some(old) = guard.handle.take() {
-                old.stop();
             }
             guard.error.clear();
             guard.token.clear();

@@ -1,5 +1,8 @@
 # Security Policy
 
+See [deployment and authentication boundaries](DEPLOYMENT-SECURITY.zh-CN.md) for
+Origin allowlists, cookie revocation, Android browser trust and systemd preparation.
+
 ## Reporting a vulnerability
 
 Please use GitHub's private vulnerability reporting or a private security advisory for this repository. Do not disclose an exploitable issue in a public issue before a fix is available.

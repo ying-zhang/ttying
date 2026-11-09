@@ -11,7 +11,7 @@ use rand::rngs::SysRng;
 use rand::TryRng;
 use std::collections::{HashMap, VecDeque};
 use std::io::{Read, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, mpsc};
@@ -228,13 +228,6 @@ impl SessionHandle {
             || self.pty.lock().map(|mut p| p.has_exited()).unwrap_or(true)
     }
 
-    pub fn attached_count(&self) -> usize {
-        self.attachment
-            .lock()
-            .unwrap_or_else(|p| p.into_inner())
-            .count
-    }
-
     pub fn detached_for(&self) -> Option<Duration> {
         let state = self.attachment.lock().unwrap_or_else(|p| p.into_inner());
         if state.count == 0 {
@@ -258,6 +251,8 @@ pub struct SessionManager {
     sessions: Mutex<HashMap<String, Arc<SessionHandle>>>,
     max_sessions: usize,
     grace: Duration,
+    opening: AtomicUsize,
+    stopping: AtomicBool,
 }
 
 impl SessionManager {
@@ -268,6 +263,8 @@ impl SessionManager {
             sessions: Mutex::new(HashMap::new()),
             max_sessions: max_sessions.max(2),
             grace: SESSION_GRACE_PERIOD,
+            opening: AtomicUsize::new(0),
+            stopping: AtomicBool::new(false),
         }
     }
 
@@ -280,10 +277,12 @@ impl SessionManager {
         cols: u16,
         rows: u16,
     ) -> Result<(Arc<SessionHandle>, bool)> {
-        let mut sessions = self
+        self.cleanup();
+        let sessions = self
             .sessions
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
+        anyhow::ensure!(!self.stopping.load(Ordering::Acquire), "server stopping");
 
         if let Some(id) = requested_id.filter(|id| valid_session_id(id)) {
             if let Some(session) = sessions.get(id) {
@@ -295,43 +294,26 @@ impl SessionManager {
                     return Ok((session, true));
                 }
             }
-            if let Some(old) = sessions.remove(id) {
-                old.shutdown();
-            }
         }
 
-        self.make_room_locked(&mut sessions);
         anyhow::ensure!(
-            sessions.len() < self.max_sessions,
+            sessions.len() + self.opening.load(Ordering::Relaxed) < self.max_sessions,
             "session capacity reached"
         );
-        let session = SessionHandle::open(&self.command, cols, rows, self.read_only)?;
+        self.opening.fetch_add(1, Ordering::Relaxed);
+        drop(sessions);
+        let opened = SessionHandle::open(&self.command, cols, rows, self.read_only);
+        let mut sessions = self.sessions.lock().unwrap_or_else(|p| p.into_inner());
+        self.opening.fetch_sub(1, Ordering::Relaxed);
+        let session = opened?;
+        if self.stopping.load(Ordering::Acquire) {
+            drop(sessions);
+            session.shutdown();
+            anyhow::bail!("server stopping");
+        }
         sessions.insert(session.id.clone(), session.clone());
         session.attach();
         Ok((session, false))
-    }
-
-    fn make_room_locked(&self, sessions: &mut HashMap<String, Arc<SessionHandle>>) {
-        if sessions.len() < self.max_sessions {
-            return;
-        }
-
-        let mut candidate: Option<(String, Duration)> = None;
-        for (id, session) in sessions.iter() {
-            if session.is_ended() || session.attached_count() == 0 {
-                if let Some(detached) = session.detached_for() {
-                    if candidate.as_ref().is_none_or(|(_, age)| detached > *age) {
-                        candidate = Some((id.clone(), detached));
-                    }
-                }
-            }
-        }
-
-        if let Some((id, _)) = candidate {
-            if let Some(old) = sessions.remove(&id) {
-                old.shutdown();
-            }
-        }
     }
 
     pub fn cleanup(&self) {
@@ -363,6 +345,7 @@ impl SessionManager {
                 .sessions
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
+            self.stopping.store(true, Ordering::Release);
             sessions.drain().map(|(_, session)| session).collect()
         };
         for session in sessions {
@@ -396,6 +379,20 @@ fn valid_session_id(id: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn capacity_preserves_detached_sessions_and_shutdown_prevents_creation() {
+        let manager = SessionManager::new(Arc::new(crate::default_shell()), false, 2);
+        let (a, _) = manager.attach_or_create(None, 80, 24).unwrap();
+        let (b, _) = manager.attach_or_create(None, 80, 24).unwrap();
+        a.detach();
+        b.detach();
+        assert!(manager.attach_or_create(None, 80, 24).is_err());
+        assert!(manager.attach_or_create(Some(&a.id), 80, 24).unwrap().1);
+        a.detach();
+        manager.shutdown_all();
+        assert!(manager.attach_or_create(None, 80, 24).is_err());
+    }
 
     #[test]
     fn initial_cursor_query_is_filtered_even_across_reads() {

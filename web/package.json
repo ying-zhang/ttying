@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/main.js --bundle --minify --outfile=../crates/ttying-core/assets/app.js"
+    "build": "node build.mjs"
   },
   "dependencies": {
     "@xterm/addon-fit": "0.11.0",

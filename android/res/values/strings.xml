@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="browser_required">Set a trusted default browser in Android settings, then try again.</string>
     <string name="app_name">ttying</string>
     <string name="subtitle">Local web terminal · loopback only</string>
     <string name="status_label">SERVICE STATUS</string>

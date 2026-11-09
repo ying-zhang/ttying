@@ -72,6 +72,11 @@ mod platform {
             let _ = self.child.kill();
         }
     }
+    impl Drop for PtySession {
+        fn drop(&mut self) {
+            self.kill();
+        }
+    }
 }
 
 #[cfg(unix)]

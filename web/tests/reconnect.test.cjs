@@ -7,7 +7,7 @@ const src = fs.readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
 const functions = src.slice(src.indexOf('async function login()'), src.indexOf('function makeFrame'));
 function context(fetch) {
   const state = { fetch, AbortController, token: 'test-token', tokenInput: { value: 'test-token' },
-    loginController: null, connectionGeneration: 0, setTimeout: () => 1, clearTimeout: () => {}, tr: (key) => key,
+    loginController: null, reconnectTimer: null, connectionGeneration: 0, setTimeout: () => 1, clearTimeout: () => {}, tr: (key) => key,
     setStatus: () => {}, hideAuth: () => {}, auth: 0, retry: 0, connections: 0 };
   state.showAuth = () => state.auth++;
   state.scheduleReconnect = () => state.retry++;
@@ -18,6 +18,15 @@ test('offline retries without asking for credentials', async () => {
   const s = context(async () => { throw new TypeError('offline'); });
   await s.authenticateAndConnect(); assert.equal(s.auth, 0); assert.equal(s.retry, 1);
   assert.equal(s.token, 'test-token');
+});
+test('immediate reconnect cancels a pending backoff timer before login', async () => {
+  const s = context(async () => ({ ok: true }));
+  s.reconnectTimer = 42;
+  const cancelled = [];
+  s.clearTimeout = id => cancelled.push(id);
+  await s.authenticateAndConnect();
+  assert.ok(cancelled.includes(42)); assert.equal(s.reconnectTimer, null);
+  assert.equal(s.connections, 1);
 });
 for (const status of [429, 500, 503]) test(`${status} retries`, async () => {
   const s = context(async () => ({ ok: false, status }));

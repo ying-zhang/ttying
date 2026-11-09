@@ -13,7 +13,7 @@ Android arm64   ->  ttying-android-arm64.apk
 
 Android APK 只负责启动、停止和显示本地服务状态，实际终端交互在系统浏览器中完成。Android 包名为 `cn.z.ttying`。
 
-当前版本：**v1.8.2** · [GitHub 仓库](https://github.com/ying-zhang/ttying) · [发布页](https://github.com/ying-zhang/ttying/releases) · [项目主页](https://ying-zhang.github.io/ttying/)
+当前版本：**v1.8.3** · [GitHub 仓库](https://github.com/ying-zhang/ttying) · [发布页](https://github.com/ying-zhang/ttying/releases) · [项目主页](https://ying-zhang.github.io/ttying/)
 
 ## 开发说明
 
@@ -52,6 +52,8 @@ ttying 是独立的 Rust 实现。代码设计时参考了以下项目的交互�
 本项目没有复制上述项目的源代码；它们的许可证和署名要求仍归各自项目所有。
 
 ## 安全模型
+
+systemd 首次部署、Origin 白名单、注销和 Android 浏览器信任边界见[部署说明](DEPLOYMENT-SECURITY.zh-CN.md)。
 
 - 默认监听 `127.0.0.1:7755`。
 - Android 优先使用 `7755`；如果端口被占用，自动回退到系统临时端口。
@@ -105,7 +107,6 @@ tar -xzf ttying-macos-arm64.tar.gz
 ```text
 adb install -r ttying-android-arm64.apk
 ```
-Android UI starts the foreground service; terminal interaction is in the browser.
 打开应用，点击中央圆形启动按钮，再点击在浏览器中打开终端。服务只监听 127.0.0.1；关闭界面不会停止前台服务。
 
 ## INI 配置文件
@@ -291,8 +292,8 @@ packaging/           systemd 单元
   - `SHA256SUMS.txt`
 - 创建发布：
   ```powershell
-  git tag v1.8.2
-  git push origin v1.8.2
+  git tag v1.8.3
+  git push origin v1.8.3
   ```
 - Android 签名需要以下 repository secrets：
   - `ANDROID_KEYSTORE_BASE64`
